@@ -188,19 +188,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const data = await response.json();
           const body = document.getElementById("alertsTableBody");
           if (body && Array.isArray(data.incidents)) {
-            body.innerHTML = data.incidents.map((inc) => `
-              <tr>
-                <td>${inc.time}</td>
-                <td><a class="ip-link text-decoration-none" href="/investigate/${inc.source_ip}">${inc.source_ip}</a></td>
-                <td>${inc.destination_ip}</td>
-                <td>${inc.attack_type}</td>
-                <td><span class="badge-status badge-severity-${inc.severity}">${inc.severity}</span></td>
-                <td>${inc.confidence}%</td>
-                <td>${inc.assigned_to}</td>
-                <td>${inc.status}</td>
-                <td><a href="/investigate/${inc.source_ip}" class="btn btn-sm btn-outline-glass">Investigate</a></td>
-              </tr>
-            `).join('');
+            renderIncidentRows(body, data.incidents);
             showToast('Demo threats loaded successfully.', 'success');
           }
         } catch (error) {
@@ -220,8 +208,9 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log("[SocketIO] Connected to server.");
     });
     socket.on("incidents_update", (data) => {
-      console.log("[SocketIO] Incidents received:", data.incidents.length);
-      showToast(`Live incident feed synced (${data.incidents.length} incidents).`, "success");
+      const incidents = Array.isArray(data && data.incidents) ? data.incidents : [];
+      console.log("[SocketIO] Incidents received:", incidents.length);
+      showToast(`Live incident feed synced (${incidents.length} incidents).`, "success");
     });
   } catch (e) {
     console.warn("SocketIO not available:", e);
@@ -308,6 +297,53 @@ function initLoadingStates() {
         else if (text.includes("process")) showToast("Prediction completed.", "success");
       }, 900);
     });
+  });
+}
+
+function buildTextCell(value) {
+  const cell = document.createElement("td");
+  cell.textContent = value == null ? "" : String(value);
+  return cell;
+}
+
+function buildInvestigationLink(ip, text, button = false) {
+  const link = document.createElement("a");
+  link.href = `/investigate/${encodeURIComponent(ip || "")}`;
+  link.textContent = text == null ? "" : String(text);
+  link.className = button ? "btn btn-sm btn-outline-glass" : "ip-link text-decoration-none";
+  return link;
+}
+
+function renderIncidentRows(body, incidents) {
+  body.replaceChildren();
+  incidents.forEach((inc) => {
+    const row = document.createElement("tr");
+
+    row.appendChild(buildTextCell(inc.time));
+
+    const sourceCell = document.createElement("td");
+    sourceCell.appendChild(buildInvestigationLink(inc.source_ip, inc.source_ip));
+    row.appendChild(sourceCell);
+
+    row.appendChild(buildTextCell(inc.destination_ip));
+    row.appendChild(buildTextCell(inc.attack_type));
+
+    const severityCell = document.createElement("td");
+    const severity = document.createElement("span");
+    severity.className = `badge-status badge-severity-${String(inc.severity || "").replace(/[^A-Za-z0-9_-]/g, "")}`;
+    severity.textContent = inc.severity || "";
+    severityCell.appendChild(severity);
+    row.appendChild(severityCell);
+
+    row.appendChild(buildTextCell(`${inc.confidence || 0}%`));
+    row.appendChild(buildTextCell(inc.assigned_to));
+    row.appendChild(buildTextCell(inc.status));
+
+    const actionCell = document.createElement("td");
+    actionCell.appendChild(buildInvestigationLink(inc.source_ip, "Investigate", true));
+    row.appendChild(actionCell);
+
+    body.appendChild(row);
   });
 }
 

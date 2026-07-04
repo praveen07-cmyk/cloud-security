@@ -38,8 +38,10 @@ def _load_model():
     """Load the model bundle from disk once, and cache it."""
     global _model_bundle, _model_loaded_attempted
 
-    if _model_loaded_attempted:
+    if _model_loaded_attempted and _model_bundle is not None:
         return _model_bundle
+    if _model_loaded_attempted and _model_bundle is None and not os.path.exists(MODEL_PATH):
+        return None
 
     _model_loaded_attempted = True
 
@@ -96,7 +98,10 @@ def predict(features: dict):
         feature_columns = bundle["feature_columns"]
         scaler = bundle.get("scaler")
 
-        row = [[_safe_feature_value(features.get(col, 0)) for col in feature_columns]]
+        row = pd.DataFrame(
+            [[_safe_feature_value(features.get(col, 0)) for col in feature_columns]],
+            columns=feature_columns,
+        )
         if scaler is not None:
             row = scaler.transform(row)
         pred_encoded = model.predict(row)[0]

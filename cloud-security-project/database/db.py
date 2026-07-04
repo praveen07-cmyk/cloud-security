@@ -12,7 +12,7 @@ friendly.
 
 import os
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -40,6 +40,10 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} i
 SessionLocal = sessionmaker(bind=engine)
 
 
+def utc_now():
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -52,8 +56,8 @@ class User(Base):
     firebase_uid = Column(String(128), unique=True, nullable=True, index=True)
     email = Column(String(160), nullable=True, index=True)
     auth_provider = Column(String(80), default="local", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
 
 class ThreatIncident(Base):
@@ -73,8 +77,8 @@ class ThreatIncident(Base):
     priority = Column(String(80), nullable=False)
     estimated_downtime = Column(String(80), nullable=False)
     estimated_financial_loss = Column(String(80), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
 
 class Report(Base):
@@ -83,7 +87,7 @@ class Report(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(160), nullable=False)
     report_type = Column(String(60), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
     generated_by = Column(String(120), nullable=False)
 
 
@@ -109,7 +113,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime, default=utc_now, nullable=False)
     user_id = Column(Integer, nullable=True)
     username = Column(String(80), nullable=False)
     action = Column(String(120), nullable=False)
@@ -120,7 +124,7 @@ class AuditLog(Base):
     ip_address = Column(String(45), nullable=False)
     user_agent = Column(String(255), nullable=False)
     status = Column(String(40), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class Setting(Base):
@@ -129,7 +133,7 @@ class Setting(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String(120), unique=True, nullable=False)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class IncidentTimeline(Base):
@@ -139,7 +143,7 @@ class IncidentTimeline(Base):
     incident_id = Column(Integer, nullable=False, index=True)
     event_time = Column(String(40), nullable=False)
     event = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class BusinessRisk(Base):
@@ -169,7 +173,7 @@ class ModelVersion(Base):
     confusion_matrix = Column(Text, default="[]", nullable=False)
     roc_curve = Column(Text, default="{}", nullable=False)
     training_history = Column(Text, default="{}", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class Notification(Base):
@@ -180,7 +184,7 @@ class Notification(Base):
     detail = Column(Text, nullable=False)
     severity = Column(String(40), nullable=False)
     is_read = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class IPReputation(Base):
@@ -640,7 +644,7 @@ def _reset_old_demo_tables_if_needed():
 
 def init_db():
     """Create tables and seed default users, reports, and fixed demo incidents."""
-    os.makedirs(DATABASE_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     _reset_old_demo_tables_if_needed()
     Base.metadata.create_all(bind=engine)
     seed_demo_data()
@@ -804,7 +808,7 @@ def get_or_create_firebase_user(firebase_uid, email, full_name, provider):
 
 
 def secrets_safe_password(seed):
-    return f"firebase-auth-{seed}-{datetime.utcnow().timestamp()}"
+    return f"firebase-auth-{seed}-{utc_now().timestamp()}"
 
 
 def get_all_incidents():
@@ -971,7 +975,7 @@ def get_latest_model_version():
 def save_model_version(metadata):
     session = _get_session()
     try:
-        version = metadata.get("version") or datetime.utcnow().strftime("rf-%Y%m%d%H%M%S")
+        version = metadata.get("version") or utc_now().strftime("rf-%Y%m%d%H%M%S")
         existing = session.query(ModelVersion).filter_by(version=version).first()
         if existing is None:
             session.add(

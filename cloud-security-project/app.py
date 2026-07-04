@@ -22,13 +22,15 @@ import csv
 import logging
 import re
 import shutil
+import sys
+import traceback
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from ipaddress import ip_address
 
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, jsonify, send_file, flash, abort
+    url_for, session, jsonify, send_file, flash, abort, has_request_context
 )
 from flask_socketio import SocketIO
 from flask_login import (
@@ -39,6 +41,10 @@ from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
 
 from config import Config
 from logging_config import setup_logging
@@ -68,6 +74,7 @@ from database.db import (
 from ml.predict import predict, is_model_available, get_model_metadata, predict_csv, predict_pcap
 from reports.generate_pdf import generate_incident_report
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import HTTPException
 import firebase_admin
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials as firebase_credentials
@@ -93,17 +100,23 @@ app.permanent_session_lifetime = app.config["PERMANENT_SESSION_LIFETIME"]
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 csrf = CSRFProtect(app)
-limiter = Limiter(get_remote_address, app=app, default_limits=["300 per day", "120 per hour"])
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["300 per day", "120 per hour"],
+    storage_uri=app.config["RATELIMIT_STORAGE_URI"],
+)
 login_manager = LoginManager(app)
 login_manager.login_view = "login_page"
 login_manager.login_message_category = "warning"
 login_manager.session_protection = "strong"
 
-init_db()
-
 UPLOAD_EXTENSIONS = {".csv", ".pcap", ".pcapng"}
 UPLOADS_DIR = os.path.join(BASE_DIR, app.config["UPLOAD_FOLDER"])
 BACKUPS_DIR = os.path.join(BASE_DIR, app.config["BACKUP_FOLDER"])
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+DATABASE_DIR = os.path.dirname(DB_PATH)
 LOGIN_ATTEMPTS = {}
 LOGIN_IP_FAILURES = {}
 ACCOUNT_LOCKS = {}
@@ -118,6 +131,104 @@ FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv(
     os.path.join(BASE_DIR, "firebase-service-account.json"),
 )
 
+REQUIRED_DIRECTORIES = {
+    "database": DATABASE_DIR,
+    "uploads": UPLOADS_DIR,
+    "logs": os.path.join(BASE_DIR, "logs"),
+    "backups": BACKUPS_DIR,
+    "models": MODELS_DIR,
+    "reports": REPORTS_DIR,
+}
+REQUIRED_TEMPLATES = {
+    "login.html",
+    "dashboard.html",
+    "analytics.html",
+    "reports.html",
+    "trust_center.html",
+    "upload_center.html",
+    "audit_logs.html",
+    "settings.html",
+    "profile.html",
+    "investigate.html",
+    "error.html",
+    "403.html",
+    "404.html",
+    "429.html",
+    "500.html",
+}
+REQUIRED_STATIC_FILES = {
+    "css/style.css",
+    "css/dashboard.css",
+    "css/login.css",
+    "js/dashboard.js",
+    "js/firebase-auth.js",
+}
+
+
+def log_exception_context(logger, message, exc):
+    tb = exc.__traceback__ if exc else None
+    frames = traceback.extract_tb(tb) if tb else []
+    last_frame = frames[-1] if frames else None
+    logger.error(
+        "%s | path=%s | exception=%s | filename=%s | line=%s",
+        message,
+        request.path if has_request_context() else "startup",
+        repr(exc),
+        last_frame.filename if last_frame else "unknown",
+        last_frame.lineno if last_frame else "unknown",
+    )
+    logger.error("Full traceback:\n%s", "".join(traceback.format_exception(type(exc), exc, tb)) if exc else "No traceback available")
+
+
+def validate_startup():
+    for name, path in REQUIRED_DIRECTORIES.items():
+        os.makedirs(path, exist_ok=True)
+        app_logger.info("Startup validation: %s folder ready at %s", name, path)
+
+    template_root = os.path.join(BASE_DIR, "frontend", "templates")
+    static_root = os.path.join(BASE_DIR, "frontend", "static")
+    os.makedirs(static_root, exist_ok=True)
+
+    missing_templates = [
+        template
+        for template in sorted(REQUIRED_TEMPLATES)
+        if not os.path.exists(os.path.join(template_root, template))
+    ]
+    missing_static = [
+        filename
+        for filename in sorted(REQUIRED_STATIC_FILES)
+        if not os.path.exists(os.path.join(static_root, filename))
+    ]
+
+    if missing_templates:
+        error_logger.error("Startup validation: missing templates: %s", ", ".join(missing_templates))
+    else:
+        app_logger.info("Startup validation: all required templates exist")
+
+    if missing_static:
+        error_logger.error("Startup validation: missing static files: %s", ", ".join(missing_static))
+    else:
+        app_logger.info("Startup validation: all required static files exist")
+
+    if app.config.get("SECRET_KEY_SOURCE") != "environment":
+        security_logger.warning("SECRET_KEY is using the development fallback. Set SECRET_KEY in Render environment variables.")
+
+    if app.config.get("RATELIMIT_STORAGE_URI") == "memory://":
+        security_logger.warning("Flask-Limiter is using memory storage. Set RATELIMIT_STORAGE_URI for multi-instance production deployments.")
+
+    init_db()
+    if not os.path.exists(DB_PATH):
+        error_logger.error("Startup validation: database was not created at %s", DB_PATH)
+    else:
+        app_logger.info("Startup validation: database ready at %s", DB_PATH)
+
+
+try:
+    validate_startup()
+except Exception as exc:
+    app_logger.error("Startup validation failed but app will continue: %s", exc)
+    app_logger.error("Full traceback:\n%s", traceback.format_exc())
+
 
 def initialize_firebase_admin():
     if firebase_admin._apps:
@@ -125,9 +236,14 @@ def initialize_firebase_admin():
     if not os.path.exists(FIREBASE_SERVICE_ACCOUNT_PATH):
         logging.warning("Firebase service account file not found: %s", FIREBASE_SERVICE_ACCOUNT_PATH)
         return False
-    cred = firebase_credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_PATH)
-    firebase_admin.initialize_app(cred)
-    return True
+    try:
+        cred = firebase_credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_PATH)
+        firebase_admin.initialize_app(cred)
+        return True
+    except Exception as exc:
+        error_logger.error("Firebase Admin initialization failed: %s", exc)
+        error_logger.error("Full traceback:\n%s", traceback.format_exc())
+        return False
 
 # ------------------------------------------------
 # Fixed demo display data (NO random data, NO simulation)
@@ -227,7 +343,11 @@ def current_user_id():
 
 
 def utc_now():
-    return datetime.utcnow()
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+def utc_timestamp():
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def client_ip():
@@ -393,7 +513,7 @@ def get_csrf_token():
 
 @app.context_processor
 def inject_security_helpers():
-    return {"csrf_token": get_csrf_token()}
+    return {"csrf_token": get_csrf_token}
 
 
 @app.after_request
@@ -588,7 +708,16 @@ def not_found(error):
 
 @app.errorhandler(500)
 def server_error(error):
-    error_logger.exception("500 %s from %s", request.path, client_ip())
+    original = getattr(error, "original_exception", None) or error
+    log_exception_context(error_logger, f"500 from {client_ip()}", original)
+    return render_template("500.html"), 500
+
+
+@app.errorhandler(Exception)
+def unhandled_exception(error):
+    if isinstance(error, HTTPException):
+        return error
+    log_exception_context(error_logger, f"Unhandled exception from {client_ip()}", error)
     return render_template("500.html"), 500
 
 
@@ -664,7 +793,7 @@ def dashboard():
         notification_items.append(
             {
                 "title": f"{inc['attack_type']} from {inc['source_ip']}",
-                "detail": f"{inc['severity']} · {inc['status']} · assigned to {inc['assigned_to']}",
+                "detail": f"{inc['severity']} - {inc['status']} - assigned to {inc['assigned_to']}",
                 "severity": inc["severity"],
             }
         )
@@ -915,7 +1044,6 @@ def audit_logs():
 
 
 @app.route("/health")
-@limiter.limit("30 per minute")
 def health():
     try:
         incident_count = len(get_incidents())
@@ -943,10 +1071,10 @@ def health():
             "app": "ok",
             "database": database_status,
             "model": "available" if is_model_available() else "not_loaded",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": utc_timestamp(),
         },
         "error": None if database_status == "ok" else "database_unavailable",
-    })
+    }), 200
 
 
 @app.route("/security-status")
@@ -964,7 +1092,7 @@ def security_status():
         "database": "ok" if os.path.exists(DB_PATH) else "missing",
         "model": "available" if is_model_available() else "not_loaded",
         "debug": bool(app.config["DEBUG"]),
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": utc_timestamp(),
     }
     return api_response(True, "Security status loaded.", data)
 
@@ -978,7 +1106,7 @@ def backup_database():
     if not os.path.exists(DB_PATH):
         audit_event("database_backup", "database", "Database file missing", "failed")
         return api_response(False, "Database is not available for backup.", error="database_missing", status_code=503)
-    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    timestamp = utc_now().strftime("%Y%m%d%H%M%S")
     backup_name = f"security_platform_{timestamp}.db"
     backup_path = os.path.join(BACKUPS_DIR, backup_name)
     shutil.copy2(DB_PATH, backup_path)
@@ -1069,6 +1197,5 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=5000,
         debug=app.config["DEBUG"],
-        use_debugger=False,
         use_reloader=app.config["DEBUG"],
     )

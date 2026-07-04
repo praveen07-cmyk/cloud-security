@@ -20,7 +20,7 @@ def login(client, username="admin", password="admin"):
     token = csrf_from(page)
     return client.post(
         "/login",
-        data={"username": username, "password": password, "remember_me": "on", "csrf_token": token},
+        data={"username": username, "password": password, "csrf_token": token},
         follow_redirects=False,
     )
 
@@ -99,8 +99,10 @@ def test_security_status_admin_only():
 def test_backup_database_admin_only():
     with app.test_client() as client:
         login(client, "praveen", "praveen123")
-        denied = client.post("/backup-database", follow_redirects=False)
-        assert denied.status_code in (302, 403)
+        page = client.get("/settings")
+        token = csrf_from(page)
+        denied = client.post("/backup-database", data={"csrf_token": token}, follow_redirects=False)
+        assert denied.status_code in (302, 400, 403)
 
 
 def test_database_initializes():

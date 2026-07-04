@@ -9,9 +9,12 @@ env/
 *.pkl
 models/rf_model.pkl
 datasets/*.csv
-uploads/
-backups/
-logs/
+uploads/*
+!uploads/.gitkeep
+backups/*
+!backups/.gitkeep
+logs/*
+!logs/.gitkeep
 reports/*.pdf
 reports/*.csv
 firebase-service-account.json

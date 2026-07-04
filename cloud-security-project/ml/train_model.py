@@ -21,7 +21,7 @@ even if no model has ever been trained.
 import os
 import sys
 import argparse
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pandas as pd
 import joblib
@@ -107,7 +107,7 @@ def train(csv_path):
         fpr, tpr, _ = roc_curve(y_test, y_score)
         roc_data = {"fpr": fpr.tolist(), "tpr": tpr.tolist(), "auc": float(auc(fpr, tpr))}
 
-    version = datetime.utcnow().strftime("rf-%Y%m%d%H%M%S")
+    version = datetime.now(UTC).strftime("rf-%Y%m%d%H%M%S")
     metrics = {
         "version": version,
         "model_path": MODEL_PATH,
