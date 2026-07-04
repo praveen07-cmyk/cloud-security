@@ -12,12 +12,26 @@ so the dashboard keeps working even before training.
 
 import os
 import joblib
+import pandas as pd
+import math
+
+from ml.preprocess import dataframe_to_feature_rows
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH = os.path.join(BASE_DIR, "models", "rf_model.pkl")
 
 _model_bundle = None
 _model_loaded_attempted = False
+
+
+def _safe_feature_value(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0
+    if not math.isfinite(number):
+        return 0
+    return max(min(number, 1_000_000_000), -1_000_000_000)
 
 
 def _load_model():
@@ -80,22 +94,92 @@ def predict(features: dict):
         model = bundle["model"]
         encoder = bundle["label_encoder"]
         feature_columns = bundle["feature_columns"]
+        scaler = bundle.get("scaler")
 
-        row = [[features.get(col, 0) for col in feature_columns]]
+        row = [[_safe_feature_value(features.get(col, 0)) for col in feature_columns]]
+        if scaler is not None:
+            row = scaler.transform(row)
         pred_encoded = model.predict(row)[0]
         pred_label = encoder.inverse_transform([pred_encoded])[0]
+        confidence = 80
+        if hasattr(model, "predict_proba"):
+            confidence = round(float(max(model.predict_proba(row)[0])) * 100, 2)
 
         return {
             "available": True,
             "prediction": str(pred_label),
+            "confidence": confidence,
             "message": "Prediction generated using the trained RandomForest model.",
         }
-    except Exception as e:
+    except Exception:
         return {
             "available": False,
             "prediction": None,
-            "message": f"Prediction failed: {e}",
+            "message": "Prediction failed safely. Please verify the model and feature format.",
         }
+
+
+def get_model_metadata():
+    bundle = _load_model()
+    if bundle is None:
+        return None
+    return bundle.get("metrics") or {"version": bundle.get("version", "unknown")}
+
+
+def predict_csv(csv_path, limit=25):
+    bundle = _load_model()
+    if bundle is None:
+        return []
+    try:
+        df = pd.read_csv(csv_path, low_memory=False)
+        rows = dataframe_to_feature_rows(df.head(limit), bundle["feature_columns"])
+    except Exception:
+        return []
+    results = []
+    for index, row in enumerate(rows, start=1):
+        result = predict(row)
+        result["row"] = index
+        results.append(result)
+    return results
+
+
+def extract_pcap_features(pcap_path, limit=25):
+    try:
+        from scapy.all import rdpcap, IP, TCP, UDP
+    except Exception:
+        return []
+
+    try:
+        packets = rdpcap(pcap_path)
+    except Exception:
+        return []
+    rows = []
+    for packet in packets[:limit]:
+        if IP not in packet:
+            continue
+        rows.append(
+            {
+                "Source Port": int(packet[TCP].sport) if TCP in packet else int(packet[UDP].sport) if UDP in packet else 0,
+                "Destination Port": int(packet[TCP].dport) if TCP in packet else int(packet[UDP].dport) if UDP in packet else 0,
+                "Protocol": int(packet[IP].proto),
+                "Flow Duration": 0,
+                "Total Fwd Packets": 1,
+                "Total Backward Packets": 0,
+                "Total Length of Fwd Packets": int(len(packet)),
+                "Total Length of Bwd Packets": 0,
+            }
+        )
+    return rows
+
+
+def predict_pcap(pcap_path, limit=25):
+    rows = extract_pcap_features(pcap_path, limit=limit)
+    results = []
+    for index, row in enumerate(rows, start=1):
+        result = predict(row)
+        result["row"] = index
+        results.append(result)
+    return results
 
 
 if __name__ == "__main__":

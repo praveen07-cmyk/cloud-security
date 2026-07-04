@@ -27,6 +27,14 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 </head>
 <body class="login-body">
+  <div class="app-splash" id="appSplash" aria-hidden="true">
+    <div class="splash-panel">
+      <div class="splash-logo"><i class="bi bi-shield-lock-fill"></i></div>
+      <p class="splash-title">CloudSec AI</p>
+      <div class="splash-loader"></div>
+      <p class="splash-text" id="splashText">Initializing AI Engine...</p>
+    </div>
+  </div>
   <div class="login-backdrop"></div>
   <div class="login-orb orb-one"></div>
   <div class="login-orb orb-two"></div>
@@ -56,6 +64,7 @@
       <p class="login-hero-copy">Sign in to review incidents, investigate threats, export reports, and operate the demo SOC without changing the backend workflow.</p>
 
       <form method="POST" action="{{ url_for('login') }}" class="login-form" id="loginForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="login-input-group">
           <label for="usernameField">Username</label>
           <div class="login-input-wrap">
@@ -90,8 +99,8 @@
         <div class="login-separator">Or continue with</div>
 
         <div class="login-secondary-actions">
-          <button type="button" class="social-login-btn google"><i class="bi bi-google"></i> Google</button>
-          <button type="button" class="social-login-btn github"><i class="bi bi-github"></i> GitHub</button>
+          <button type="button" class="social-login-btn google" id="googleLoginBtn"><i class="bi bi-google"></i> Google OAuth Ready</button>
+          <button type="button" class="social-login-btn github" id="githubLoginBtn"><i class="bi bi-github"></i> GitHub OAuth Ready</button>
           <button type="button" class="social-login-btn" id="demoModeBtn"><i class="bi bi-lightning-charge-fill"></i> Demo Mode</button>
         </div>
 
@@ -138,6 +147,23 @@
       const demoModeBtn = document.getElementById("demoModeBtn");
       const loginForm = document.getElementById("loginForm");
       const usernameField = document.getElementById("usernameField");
+      const splash = document.getElementById("appSplash");
+      const splashText = document.getElementById("splashText");
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      if (splash) {
+        const messages = ["Initializing AI Engine...", "Loading Threat Intelligence...", "Connecting Database...", "Preparing Dashboard..."];
+        let index = 0;
+        const timer = window.setInterval(() => {
+          index = (index + 1) % messages.length;
+          if (splashText) splashText.textContent = messages[index];
+        }, 420);
+        window.setTimeout(() => {
+          window.clearInterval(timer);
+          splash.classList.add("is-hidden");
+          window.setTimeout(() => splash.remove(), 460);
+        }, reduceMotion ? 0 : 900);
+      }
 
       function setTheme(theme, persist) {
         const nextTheme = theme === "light" ? "light" : "dark";
@@ -170,6 +196,8 @@
           const hidden = passwordField.type === "password";
           passwordField.type = hidden ? "text" : "password";
           toggleIcon.className = hidden ? "bi bi-eye" : "bi bi-eye-slash";
+          toggleIcon.style.transform = hidden ? "rotate(-8deg) scale(1.08)" : "rotate(0deg) scale(1)";
+          window.setTimeout(() => { toggleIcon.style.transform = ""; }, 220);
         });
       }
 
@@ -181,20 +209,22 @@
         });
       }
 
-      document.querySelectorAll(".social-login-btn").forEach((button) => {
-        if (button.id === "demoModeBtn") {
-          return;
-        }
-        button.addEventListener("click", () => {
-          const provider = button.textContent.trim();
-          const helper = document.createElement("div");
-          helper.className = "login-alert";
-          helper.textContent = `${provider} sign-in is available in the enterprise UI layer only.`;
-          loginForm.insertBefore(helper, loginForm.querySelector(".login-separator"));
-          window.setTimeout(() => helper.remove(), 2200);
+      document.querySelectorAll("button, .social-login-btn, .login-btn").forEach((button) => {
+        button.classList.add("ripple-target");
+        button.addEventListener("click", (event) => {
+          if (reduceMotion) return;
+          const rect = button.getBoundingClientRect();
+          const ripple = document.createElement("span");
+          ripple.className = "ui-ripple";
+          ripple.style.left = `${event.clientX - rect.left}px`;
+          ripple.style.top = `${event.clientY - rect.top}px`;
+          button.appendChild(ripple);
+          window.setTimeout(() => ripple.remove(), 440);
         });
       });
+
     })();
   </script>
+  <script type="module" src="{{ url_for('static', filename='js/firebase-auth.js') }}"></script>
 </body>
 </html>

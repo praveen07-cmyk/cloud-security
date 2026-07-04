@@ -14,13 +14,12 @@ import os
 from datetime import datetime
 from collections import Counter
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(BASE_DIR, "reports")
+REPORTLAB_MISSING_MESSAGE = (
+    "PDF generation requires ReportLab. Install dependencies using "
+    "py -m pip install -r requirements.txt"
+)
 
 
 def generate_incident_report(incidents, output_filename="security_report.pdf"):
@@ -34,6 +33,14 @@ def generate_incident_report(incidents, output_filename="security_report.pdf"):
     Returns:
         str: full path to the generated PDF.
     """
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+    except ImportError as exc:
+        raise RuntimeError(REPORTLAB_MISSING_MESSAGE) from exc
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output_path = os.path.join(OUTPUT_DIR, output_filename)
     styles = getSampleStyleSheet()

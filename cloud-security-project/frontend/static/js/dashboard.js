@@ -8,6 +8,7 @@
 // ---------- Theme Toggle ----------
 const THEME_STORAGE_KEY = "cloudsec-theme";
 const SIDEBAR_STORAGE_KEY = "cloudsec-sidebar-collapsed";
+const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function readStoredTheme() {
   try {
@@ -72,8 +73,14 @@ function applySidebarState(collapsed, persist = true) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  document.body.classList.add("ui-loading");
   applyTheme(readStoredTheme() || document.documentElement.getAttribute("data-theme") || "dark", false);
   applySidebarState(readStoredSidebarState() === "1", false);
+  initSplashScreen();
+  initEnterpriseAnimations();
+  initRippleTargets();
+  initLoadingStates();
+  initBackToTop();
 
   const deterrentMessage = "Developer tools and context menus are restricted in demo mode.";
 
@@ -131,13 +138,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const el = document.getElementById("liveClock");
     if (!el) return;
     const now = new Date();
-    el.textContent = now.toLocaleTimeString();
+    el.textContent = `${now.toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })} ${now.toLocaleTimeString()}`;
   }
   updateClock();
   setInterval(updateClock, 1000);
 
   // Counter animation
   document.querySelectorAll(".counter-animate").forEach((el) => {
+    if (reduceMotion) {
+      el.textContent = (parseInt(el.getAttribute("data-target"), 10) || 0).toLocaleString();
+      return;
+    }
     const target = parseInt(el.getAttribute("data-target"), 10) || 0;
     let current = 0;
     const step = Math.max(1, Math.ceil(target / 40));
@@ -215,7 +226,99 @@ document.addEventListener("DOMContentLoaded", function () {
   } catch (e) {
     console.warn("SocketIO not available:", e);
   }
+
+  window.setTimeout(() => document.body.classList.remove("ui-loading"), reduceMotion ? 0 : 520);
 });
+
+function initSplashScreen() {
+  const splash = document.getElementById("appSplash");
+  const splashText = document.getElementById("splashText");
+  if (!splash) return;
+
+  const messages = [
+    "Initializing AI Engine...",
+    "Loading Threat Intelligence...",
+    "Connecting Database...",
+    "Preparing Dashboard...",
+  ];
+  let index = 0;
+  if (splashText) {
+    splashText.textContent = messages[index];
+    const timer = window.setInterval(() => {
+      index = (index + 1) % messages.length;
+      splashText.textContent = messages[index];
+    }, 420);
+    window.setTimeout(() => window.clearInterval(timer), 1200);
+  }
+
+  window.setTimeout(() => {
+    splash.classList.add("is-hidden");
+    window.setTimeout(() => splash.remove(), 460);
+  }, reduceMotion ? 0 : 900);
+}
+
+function initEnterpriseAnimations() {
+  if (reduceMotion) return;
+  const animated = document.querySelectorAll(".glass-card, .ai-panel, .status-card, .metric-card, .activity-item, .recommendation-item");
+  animated.forEach((element, index) => {
+    element.classList.add("enterprise-enter");
+    element.style.animationDelay = `${Math.min(index * 60, 420)}ms`;
+  });
+}
+
+function initRippleTargets() {
+  const targets = document.querySelectorAll("button, .btn-cyan, .btn-outline-glass, .quick-action-btn, .social-login-btn, .theme-toggle-btn, .notif-btn");
+  targets.forEach((target) => {
+    target.classList.add("ripple-target");
+    target.addEventListener("click", (event) => {
+      if (reduceMotion) return;
+      const rect = target.getBoundingClientRect();
+      const ripple = document.createElement("span");
+      ripple.className = "ui-ripple";
+      ripple.style.left = `${event.clientX - rect.left}px`;
+      ripple.style.top = `${event.clientY - rect.top}px`;
+      target.appendChild(ripple);
+      window.setTimeout(() => ripple.remove(), 440);
+    });
+  });
+}
+
+function initLoadingStates() {
+  const loadingSelectors = [
+    'a[href*="download-pdf"]',
+    'a[href*="download-csv"]',
+    "#loadDemoBtn",
+    'button[onclick*="reload"]',
+    'button[type="submit"]',
+    'form[enctype="multipart/form-data"] button',
+  ];
+
+  document.querySelectorAll(loadingSelectors.join(",")).forEach((element) => {
+    element.addEventListener("click", () => {
+      element.classList.add("is-loading");
+      const text = element.textContent.trim().toLowerCase();
+      if (text.includes("pdf")) showToast("Generating PDF report...", "info");
+      else if (text.includes("csv")) showToast("Preparing CSV export...", "info");
+      else if (text.includes("process")) showToast("Prediction pipeline started...", "info");
+      else if (text.includes("refresh")) showToast("Refreshing dashboard...", "info");
+      window.setTimeout(() => {
+        element.classList.remove("is-loading");
+        if (text.includes("pdf")) showToast("Report generated.", "success");
+        else if (text.includes("csv")) showToast("CSV export prepared.", "success");
+        else if (text.includes("process")) showToast("Prediction completed.", "success");
+      }, 900);
+    });
+  });
+}
+
+function initBackToTop() {
+  const button = document.getElementById("backToTop");
+  if (!button) return;
+  window.addEventListener("scroll", () => {
+    button.classList.toggle("is-visible", window.scrollY > 360);
+  }, { passive: true });
+  button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }));
+}
 
 // ---------- Toast ----------
 function showToast(message, type = "info") {
@@ -237,13 +340,12 @@ function showToast(message, type = "info") {
   toast.style.marginBottom = "0.5rem";
   toast.style.minWidth = "260px";
   toast.style.boxShadow = "0 8px 20px rgba(0,0,0,0.4)";
-  toast.style.animation = "fadeInUp 0.3s ease forwards";
+  toast.style.animation = "toastIn 0.24s ease forwards";
   toast.innerText = message;
 
   container.appendChild(toast);
   setTimeout(() => {
-    toast.style.transition = "opacity 0.4s ease";
-    toast.style.opacity = "0";
+    toast.style.animation = "toastOut 0.28s ease forwards";
     setTimeout(() => toast.remove(), 400);
   }, 3000);
 }
@@ -291,7 +393,7 @@ function initDashboardCharts(attackDistribution, trafficPattern, securityScore) 
           x: { grid: { display: false } },
           y: { grid: { color: "rgba(148,163,184,0.08)" } },
         },
-        animation: { duration: 900, easing: "easeOutQuart" },
+        animation: { duration: reduceMotion ? 0 : 480, easing: "easeOutQuart" },
       },
     });
   }
@@ -317,7 +419,7 @@ function initDashboardCharts(attackDistribution, trafficPattern, securityScore) 
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } },
-        animation: { duration: 900 },
+        animation: { duration: reduceMotion ? 0 : 480 },
       },
     });
   }
@@ -348,7 +450,7 @@ function initDashboardCharts(attackDistribution, trafficPattern, securityScore) 
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        animation: { duration: 900 },
+        animation: { duration: reduceMotion ? 0 : 480 },
       },
     });
 
@@ -410,7 +512,7 @@ function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severit
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-        animation: { duration: 900 },
+        animation: { duration: reduceMotion ? 0 : 480 },
       },
     });
   }
@@ -435,7 +537,7 @@ function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severit
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        animation: { duration: 900 },
+        animation: { duration: reduceMotion ? 0 : 480 },
       },
     });
   }
@@ -457,7 +559,7 @@ function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severit
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { position: "bottom" } },
-        animation: { duration: 900 },
+        animation: { duration: reduceMotion ? 0 : 480 },
       },
     });
   }
@@ -479,7 +581,7 @@ function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severit
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { position: "bottom" } },
-        animation: { duration: 900 },
+        animation: { duration: reduceMotion ? 0 : 480 },
       },
     });
   }

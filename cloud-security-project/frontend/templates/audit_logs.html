@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% set active_page = "audit_logs" %}
+{% block title %}Audit Logs - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+<section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <div class="section-title mb-1"><i class="bi bi-journal-check"></i> Audit Logs</div>
+    <p class="mb-0" style="color: var(--text-muted);">Enterprise activity trail for authentication, investigation, reporting, uploads, and access control.</p>
+  </div>
+  <span class="badge-status" style="background: rgba(34,197,94,0.12); color: var(--green);">SQLite Stored</span>
+</section>
+
+<div class="glass-card">
+  <div class="table-responsive">
+    <table class="security-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>User</th>
+          <th>Action</th>
+          <th>Resource</th>
+          <th>Status</th>
+          <th>IP</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in audit_logs %}
+        <tr>
+          <td>{{ log.created_at }}</td>
+          <td>{{ log.username }}</td>
+          <td>{{ log.action }}</td>
+          <td>{{ log.resource }}</td>
+          <td>{{ log.status }}</td>
+          <td>{{ log.ip_address }}</td>
+          <td>{{ log.detail }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No audit events recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

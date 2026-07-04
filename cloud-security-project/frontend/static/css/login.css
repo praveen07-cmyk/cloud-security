@@ -16,6 +16,8 @@ body.login-body {
     linear-gradient(180deg, var(--bg-color), var(--bg-alt));
   color: var(--text-color);
   overflow: hidden;
+  background-size: 140% 140%;
+  animation: loginGradientShift 16s ease-in-out infinite;
 }
 
 .login-shell {
@@ -231,6 +233,13 @@ body.login-body {
 
 .login-secondary-actions .social-login-btn {
   justify-content: center;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.login-theme-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 229, 255, 0.38);
+  box-shadow: var(--shadow-glow);
 }
 
 .login-separator {
@@ -258,6 +267,7 @@ body.login-body {
   border: 1px solid rgba(239, 68, 68, 0.28);
   color: var(--text-color);
   font-size: 0.88rem;
+  animation: enterpriseItemIn 260ms ease both;
 }
 
 .login-card .demo-credentials-card,
@@ -300,6 +310,13 @@ body.login-body {
   border-radius: 16px;
   border: 1px solid var(--border-color);
   background: rgba(255, 255, 255, 0.04);
+  transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+
+.login-visual-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 229, 255, 0.28);
+  box-shadow: var(--shadow-glow);
 }
 
 .login-visual-card strong {
@@ -345,4 +362,9 @@ body.login-body {
 @keyframes orbFloat {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(18px, -12px, 0) scale(1.06); }
+}
+
+@keyframes loginGradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }

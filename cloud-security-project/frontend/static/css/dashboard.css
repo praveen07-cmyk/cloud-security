@@ -65,5 +65,26 @@
 .recommendation-item:hover,
 .quick-action-btn:hover,
 .status-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px) scale(1.01);
 }
+
+.metrics-grid .metric-card:nth-child(1) { animation-delay: 60ms; }
+.metrics-grid .metric-card:nth-child(2) { animation-delay: 160ms; }
+.metrics-grid .metric-card:nth-child(3) { animation-delay: 260ms; }
+.metrics-grid .metric-card:nth-child(4) { animation-delay: 360ms; }
+.metrics-grid .metric-card:nth-child(5) { animation-delay: 460ms; }
+
+.chart-wrap canvas {
+  opacity: 0;
+  animation: enterpriseItemIn 420ms ease 140ms forwards;
+}
+
+.heatmap-cell {
+  opacity: 0;
+  animation: enterpriseItemIn 260ms ease forwards;
+}
+
+.heatmap-cell:nth-child(4n+1) { animation-delay: 40ms; }
+.heatmap-cell:nth-child(4n+2) { animation-delay: 80ms; }
+.heatmap-cell:nth-child(4n+3) { animation-delay: 120ms; }
+.heatmap-cell:nth-child(4n+4) { animation-delay: 160ms; }

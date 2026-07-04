@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+{% set active_page = "trust_center" %}
+{% block title %}Trust Center - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+<section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <div class="section-title mb-1"><i class="bi bi-patch-check-fill"></i> Compliance & Trust Center</div>
+    <p class="mb-0" style="color: var(--text-muted);">Demo-ready view of security posture, trust signals, and compliance readiness for stakeholder reviews.</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% for badge in trust_badges %}
+    <span class="badge-status" style="background: rgba(0,229,255,0.12); color: var(--accent); border-color: rgba(0,229,255,0.18);">
+      <i class="bi bi-check-circle-fill"></i> {{ badge }}
+    </span>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="metrics-grid mb-3">
+  <article class="glass-card metric-card">
+    <div class="metric-icon" style="background: rgba(34,197,94,0.12); color: var(--green);"><i class="bi bi-shield-check"></i></div>
+    <div class="metric-value">92%</div>
+    <div class="metric-label">Security Control Coverage</div>
+  </article>
+  <article class="glass-card metric-card">
+    <div class="metric-icon" style="background: rgba(0,229,255,0.12); color: var(--accent);"><i class="bi bi-person-lock"></i></div>
+    <div class="metric-value">7</div>
+    <div class="metric-label">Configured Roles</div>
+  </article>
+  <article class="glass-card metric-card">
+    <div class="metric-icon" style="background: rgba(37,99,235,0.12); color: var(--blue);"><i class="bi bi-journal-check"></i></div>
+    <div class="metric-value">On</div>
+    <div class="metric-label">Audit Logging</div>
+  </article>
+  <article class="glass-card metric-card">
+    <div class="metric-icon" style="background: rgba(245,158,11,0.12); color: var(--orange);"><i class="bi bi-database-check"></i></div>
+    <div class="metric-value">Ready</div>
+    <div class="metric-label">Backup & Recovery</div>
+  </article>
+  <article class="glass-card metric-card">
+    <div class="metric-icon" style="background: rgba(239,68,68,0.12); color: var(--red);"><i class="bi bi-clipboard2-pulse"></i></div>
+    <div class="metric-value">Low</div>
+    <div class="metric-label">Residual Demo Risk</div>
+  </article>
+</section>
+
+<section class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-shield-lock-fill"></i> Security Controls</div>
+      <div class="info-row"><span class="label">Authentication</span><span class="value">Flask-Login + Firebase-ready</span></div>
+      <div class="info-row"><span class="label">Password Storage</span><span class="value">Werkzeug hashing</span></div>
+      <div class="info-row"><span class="label">CSRF Protection</span><span class="value">Enabled for forms</span></div>
+      <div class="info-row"><span class="label">Security Headers</span><span class="value">CSP, frame, MIME, referrer</span></div>
+      <div class="info-row"><span class="label">Upload Safety</span><span class="value">Extension and size checks</span></div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-person-badge-fill"></i> Access Control Summary</div>
+      <div class="table-responsive">
+        <table class="security-table mb-0">
+          <thead><tr><th>Role</th><th>Access Level</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Administrator</td><td>Full platform</td><td><span class="badge-status" style="color: var(--green);">Active</span></td></tr>
+            <tr><td>SOC Manager</td><td>Operations + audit</td><td><span class="badge-status" style="color: var(--green);">Active</span></td></tr>
+            <tr><td>SOC Analyst</td><td>Investigation workflow</td><td><span class="badge-status" style="color: var(--green);">Active</span></td></tr>
+            <tr><td>Read Only Analyst</td><td>View-only future role</td><td><span class="badge-status" style="color: var(--blue);">Prepared</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="row g-3 mb-3">
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-journal-text"></i> Audit Logging Status</div>
+      <p style="color: var(--text-muted);">Login, logout, dashboard access, investigation, reports, uploads, and denied access attempts are recorded for review.</p>
+      <a href="{{ url_for('audit_logs') }}" class="btn-outline-glass text-decoration-none"><i class="bi bi-box-arrow-up-right"></i> View Audit Logs</a>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-database-fill-check"></i> Backup & Recovery Status</div>
+      <div class="info-row"><span class="label">SQLite backup utility</span><span class="value">Admin-ready</span></div>
+      <div class="info-row"><span class="label">Recovery mode</span><span class="value">Manual demo process</span></div>
+      <div class="info-row"><span class="label">Recommended cadence</span><span class="value">Daily</span></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-file-lock2-fill"></i> Data Privacy Summary</div>
+      <p class="mb-0" style="color: var(--text-muted);">The demo keeps operational data in SQLite, avoids exposing model paths in the UI, and documents that frontend code cannot be fully hidden from browsers.</p>
+    </div>
+  </div>
+</section>
+
+<section class="row g-3">
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-clipboard2-check-fill"></i> Compliance Readiness</div>
+      <div class="info-row"><span class="label">SOC 2-style controls</span><span class="value">Demo-ready</span></div>
+      <div class="info-row"><span class="label">ISO 27001 mapping</span><span class="value">Future-ready</span></div>
+      <div class="info-row"><span class="label">Evidence collection</span><span class="value">Audit logs + reports</span></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-cloud-download-fill"></i> Report Download Portal</div>
+      <p style="color: var(--text-muted);">Download operational evidence from the current demo incident snapshot.</p>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('download_pdf_report') }}" class="btn-cyan text-decoration-none"><i class="bi bi-file-earmark-pdf-fill"></i> PDF</a>
+        <a href="{{ url_for('download_csv_report') }}" class="btn-outline-glass text-decoration-none"><i class="bi bi-filetype-csv"></i> CSV</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-graph-up-arrow"></i> Risk Assessment Summary</div>
+      <div class="info-row"><span class="label">Critical incidents</span><span class="value">2 demo events</span></div>
+      <div class="info-row"><span class="label">Highest business risk</span><span class="value">DDoS / SQL Injection</span></div>
+      <div class="info-row"><span class="label">Recommended action</span><span class="value">Review response plan</span></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

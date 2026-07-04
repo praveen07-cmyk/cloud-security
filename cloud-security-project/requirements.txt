@@ -1,4 +1,7 @@
 flask
+flask-sqlalchemy
+Flask-WTF
+Flask-Limiter
 flask-login
 flask-socketio
 eventlet
@@ -10,3 +13,6 @@ scapy
 sqlalchemy
 reportlab
 python-dotenv
+pytest
+firebase-admin
+gunicorn

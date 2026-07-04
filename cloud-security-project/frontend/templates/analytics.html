@@ -27,6 +27,37 @@
 </div>
 
 <div class="row g-3 mb-3">
+  <div class="col-lg-8">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-cpu-fill"></i> Machine Learning Model Evaluation</div>
+      {% set model = latest_model or model_metadata %}
+      {% if model %}
+      <div class="row g-2">
+        <div class="col-md-3"><div class="status-card"><strong>Accuracy</strong><div>{{ "%.2f"|format((model.accuracy or 0) * 100) }}%</div></div></div>
+        <div class="col-md-3"><div class="status-card"><strong>Precision</strong><div>{{ "%.2f"|format((model.precision or 0) * 100) }}%</div></div></div>
+        <div class="col-md-3"><div class="status-card"><strong>Recall</strong><div>{{ "%.2f"|format((model.recall or 0) * 100) }}%</div></div></div>
+        <div class="col-md-3"><div class="status-card"><strong>F1 Score</strong><div>{{ "%.2f"|format((model.f1_score or 0) * 100) }}%</div></div></div>
+      </div>
+      <div class="info-row mt-3"><span class="label">Model Version</span><span class="value">{{ model.version or "unknown" }}</span></div>
+      <div class="info-row"><span class="label">Dataset</span><span class="value">{{ model.dataset_name or "not recorded" }}</span></div>
+      {% else %}
+      <p class="mb-0" style="color: var(--text-muted);">No trained model metadata found. The platform is running in rule-based mode until `py ml/train_model.py` is executed with a dataset.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Confusion Matrix</div>
+      {% if latest_model and latest_model.confusion_matrix %}
+      <pre class="mb-0" style="color: var(--text-color); white-space: pre-wrap;">{{ latest_model.confusion_matrix }}</pre>
+      {% else %}
+      <p class="mb-0" style="color: var(--text-muted);">Available after model training.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
   <div class="col-lg-6">
     <div class="glass-card h-100">
       <div class="section-title"><i class="bi bi-exclamation-diamond-fill"></i> Severity Distribution Chart</div>

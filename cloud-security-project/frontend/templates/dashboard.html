@@ -30,8 +30,26 @@
   <div class="d-flex align-items-center gap-2 flex-wrap">
     <span class="demo-badge"><i class="bi bi-circle-fill" style="font-size:6px;"></i> DEMO MODE</span>
     <span class="future-ready-badge"><i class="bi bi-stars"></i> FUTURE READY</span>
+    <a class="quick-action-btn text-decoration-none" href="{{ url_for('dashboard', view='executive' if not executive_mode else 'technical') }}">
+      <i class="bi bi-building-fill-check"></i> {{ "Technical View" if executive_mode else "Executive View" }}
+    </a>
   </div>
 </section>
+
+{% if executive_mode %}
+<section class="row g-3 mb-3">
+  <div class="col-lg-3 col-md-6"><div class="glass-card metric-card"><div class="metric-value">{{ risk_level }}</div><div class="metric-label">Business Risk</div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="glass-card metric-card"><div class="metric-value">${{ "{:,}".format(81000) }}</div><div class="metric-label">Revenue Risk</div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="glass-card metric-card"><div class="metric-value">{{ assets|selectattr('criticality', 'equalto', 'Critical')|list|length }}</div><div class="metric-label">Critical Assets</div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="glass-card metric-card"><div class="metric-value">72%</div><div class="metric-label">Security Maturity</div></div></div>
+  <div class="col-12">
+    <div class="glass-card">
+      <div class="section-title"><i class="bi bi-file-earmark-bar-graph-fill"></i> Executive Summary</div>
+      <p class="mb-0" style="color: var(--text-muted);">The current SOC snapshot contains {{ incidents|length }} incidents, {{ active_threats }} active threats, and {{ assets|selectattr('criticality', 'equalto', 'Critical')|list|length }} critical assets requiring continued monitoring.</p>
+    </div>
+  </div>
+</section>
+{% endif %}
 
 <section class="metrics-grid mb-3">
   <article class="glass-card metric-card fade-in-up">

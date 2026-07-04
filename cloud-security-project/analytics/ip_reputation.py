@@ -47,10 +47,18 @@ def get_ip_reputation(source_ip, all_incidents):
     else:
         reputation = "Unknown"
 
+    severity_history = [i.get("severity", "Unknown") for i in matching]
+    last_seen = matching[-1].get("time") if matching else "Never"
+
     return {
         "reputation": reputation,
+        "status": reputation if reputation != "Unknown" else "Unknown",
         "attack_count": attack_count,
         "score": severity_total,
+        "country": "Unknown",
+        "last_seen": last_seen,
+        "severity_history": severity_history,
+        "future_integrations": ["AbuseIPDB", "VirusTotal", "OTX"],
     }
 
 

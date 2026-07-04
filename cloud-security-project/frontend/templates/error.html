@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% set active_page = "" %}
+{% block title %}{{ code }} - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+<section class="glass-card text-center" style="max-width: 760px; margin: 4rem auto;">
+  <div class="section-title justify-content-center"><i class="bi bi-shield-exclamation"></i> SOC Request Guard</div>
+  <h1 class="display-5 fw-bold">{{ code }}</h1>
+  <h2 class="h4">{{ title }}</h2>
+  <p style="color: var(--text-muted);">{{ message }}</p>
+  <a href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('login_page') }}" class="btn-cyan text-decoration-none">
+    <i class="bi bi-arrow-left"></i> Return Safely
+  </a>
+</section>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% set active_page = "upload" %}
+{% block title %}Upload Center - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+<section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <div class="section-title mb-1"><i class="bi bi-cloud-arrow-up-fill"></i> Upload Center</div>
+    <p class="mb-0" style="color: var(--text-muted);">Upload CSV IDS datasets or PCAP files for ML prediction and incident enrichment.</p>
+  </div>
+  <span class="badge-status" style="background: rgba(0,229,255,0.12); color: var(--accent);">CSV / PCAP Ready</span>
+</section>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-upload"></i> Threat Data Upload</div>
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_center') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label">CSV, PCAP, or PCAPNG file</label>
+          <input class="form-control" type="file" name="threat_file" accept=".csv,.pcap,.pcapng" required>
+        </div>
+        <button class="btn-cyan" type="submit"><i class="bi bi-shield-check me-1"></i> Process File</button>
+      </form>
+      <hr style="border-color: var(--border-color);">
+      <div class="info-row"><span class="label">Model Status</span><span class="value">{{ "Trained model available" if model_available else "Rule-based fallback" }}</span></div>
+      <div class="info-row"><span class="label">Supported Modes</span><span class="value">Demo, CSV Upload, PCAP Upload</span></div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-cpu-fill"></i> Live Prediction Flow</div>
+      <div class="row g-2">
+        {% for label in ["Upload", "Preprocess", "Random Forest", "Business Risk", "Recommendation", "Dashboard"] %}
+        <div class="col-md-4">
+          <div class="status-card text-center h-100"><strong>{{ label }}</strong><div style="color: var(--text-muted);">Enterprise pipeline</div></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="glass-card">
+  <div class="section-title"><i class="bi bi-list-check"></i> Prediction Results{% if uploaded_filename %} - {{ uploaded_filename }}{% endif %}</div>
+  {% if prediction_results %}
+  <div class="table-responsive">
+    <table class="security-table">
+      <thead><tr><th>Row</th><th>Prediction</th><th>Confidence</th><th>Status</th><th>Message</th></tr></thead>
+      <tbody>
+        {% for result in prediction_results %}
+        <tr>
+          <td>{{ result.row }}</td>
+          <td>{{ result.prediction or "Unavailable" }}</td>
+          <td>{{ result.confidence or 0 }}%</td>
+          <td>{{ "Predicted" if result.available else "Fallback" }}</td>
+          <td>{{ result.message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="mb-0" style="color: var(--text-muted);">Upload a supported file to generate prediction results.</p>
+  {% endif %}
+</div>
+{% endblock %}

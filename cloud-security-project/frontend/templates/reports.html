@@ -72,6 +72,15 @@
 
 <div class="glass-card">
   <div class="section-title"><i class="bi bi-clock-history"></i> Report History</div>
-  <p class="mb-0" style="color: var(--text-muted);">Historical report storage is a future enhancement. Current exports are generated on demand from the live demo snapshot.</p>
+  {% if reports is defined and reports %}
+    {% for report in reports %}
+    <div class="info-row">
+      <span class="label">{{ report.report_type }}</span>
+      <span class="value">{{ report.title }} - {{ report.generated_by }}</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="mb-0" style="color: var(--text-muted);">No report placeholders are stored yet. Current exports are generated on demand from the live demo snapshot.</p>
+  {% endif %}
 </div>
 {% endblock %}

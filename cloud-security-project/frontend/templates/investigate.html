@@ -43,6 +43,8 @@
       </div>
       <div class="info-row"><span class="label">Attack Count</span><span class="value">{{ reputation_data.attack_count }}</span></div>
       <div class="info-row"><span class="label">Reputation Score</span><span class="value">{{ reputation_data.score }}</span></div>
+      <div class="info-row"><span class="label">Last Seen</span><span class="value">{{ reputation_data.last_seen }}</span></div>
+      <div class="info-row"><span class="label">Country</span><span class="value">{{ reputation_data.country }}</span></div>
       <div class="info-row"><span class="label">Most Common Attack</span><span class="value">{{ reputation_data.most_common_attack or 'Unknown' }}</span></div>
       {% else %}
       <div class="text-muted">No reputation data available for this incident.</div>
@@ -94,7 +96,11 @@
       <div class="info-row"><span class="label">Assigned To</span><span class="value">{{ incident_data.assigned_to }}</span></div>
       <div class="info-row"><span class="label">Analyst Role</span><span class="value">{{ session.get('role') or 'SOC Analyst' }}</span></div>
       <div class="info-row"><span class="label">Investigation Status</span><span class="value">{{ incident_data.status }}</span></div>
+      <div class="info-row"><span class="label">Recovery Status</span><span class="value">{{ 'Contained' if incident_data.status == 'Blocked' else 'In Progress' }}</span></div>
+      <div class="info-row"><span class="label">Resolution Notes</span><span class="value">Validate containment, review logs, and document closure evidence.</span></div>
       <hr style="border-color: var(--border-color);">
+      <div class="section-title"><i class="bi bi-diagram-3-fill"></i> Attack Storyline</div>
+      <p style="color: var(--text-muted);">{{ incident_data.attack_type }} activity was observed from {{ incident_data.source_ip }} against {{ incident_data.destination_ip }} with {{ incident_data.confidence }}% confidence. The incident is assigned to {{ incident_data.assigned_to }} for containment and recovery.</p>
       <div class="section-title"><i class="bi bi-hourglass-split"></i> Attack Timeline</div>
       <div class="timeline">
         {% if timeline_data %}

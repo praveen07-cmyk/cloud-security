@@ -37,6 +37,18 @@ RECOMMENDATIONS = {
         "Rate-limit or geo-block traffic from the offending source range.",
         "Notify the cloud provider's network security / NOC team.",
     ],
+    "DoS": [
+        "Enable rate limiting on the affected service.",
+        "Apply firewall rules for repeated request bursts.",
+        "Review service capacity and autoscaling thresholds.",
+        "Increase monitoring level until traffic normalizes.",
+    ],
+    "Bot Attack": [
+        "Enable bot protection rules at the edge or WAF.",
+        "Challenge suspicious clients with CAPTCHA or device checks.",
+        "Review user-agent and request-rate patterns.",
+        "Block confirmed malicious automation sources.",
+    ],
 }
 
 DEFAULT_RECOMMENDATION = [

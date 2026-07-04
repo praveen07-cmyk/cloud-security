@@ -10,6 +10,7 @@ before training a RandomForestClassifier.
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 
 def clean_dataframe(df):
@@ -29,9 +30,12 @@ def clean_dataframe(df):
     df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
 
-    # Replace inf/-inf with NaN, then drop
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    df.dropna(inplace=True)
+    for column in df.columns:
+        if pd.api.types.is_numeric_dtype(df[column]):
+            df[column] = df[column].fillna(df[column].median())
+        else:
+            df[column] = df[column].fillna("Unknown")
     df.drop_duplicates(inplace=True)
 
     return df
@@ -70,3 +74,31 @@ def split_features_labels(df, label_column):
     X = X.select_dtypes(include=[np.number])
 
     return X, y
+
+
+def prepare_features_for_training(df, label_column):
+    """Return numeric, encoded feature dataframe and label series."""
+    y = df[label_column]
+    X = df.drop(columns=[label_column])
+    X = pd.get_dummies(X, drop_first=False)
+    X = X.apply(pd.to_numeric, errors="coerce").fillna(0)
+    return X, y
+
+
+def scale_features(X_train, X_test):
+    """Scale feature matrices and return scaled data plus fitted scaler."""
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    return X_train_scaled, X_test_scaled, scaler
+
+
+def dataframe_to_feature_rows(df, feature_columns):
+    """Convert uploaded CSV rows into model-ready dictionaries."""
+    df = clean_dataframe(df)
+    label_column = find_label_column(df)
+    if label_column:
+        df = df.drop(columns=[label_column])
+    df = pd.get_dummies(df, drop_first=False)
+    df = df.apply(pd.to_numeric, errors="coerce").fillna(0)
+    return [{column: row.get(column, 0) for column in feature_columns} for row in df.to_dict(orient="records")]

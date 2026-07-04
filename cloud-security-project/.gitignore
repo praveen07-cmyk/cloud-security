@@ -4,11 +4,17 @@ __pycache__/
 .venv/
 venv/
 env/
+.env
 *.db
+*.pkl
 models/rf_model.pkl
 datasets/*.csv
+uploads/
+backups/
+logs/
 reports/*.pdf
 reports/*.csv
+firebase-service-account.json
 .vscode/
 .idea/
 .DS_Store
