@@ -377,12 +377,40 @@ The current implementation uses controlled demo incidents to demonstrate the com
 
 ---
 
-# Author
+---
 
-**CSBS (Computer Science and Business Systems) Mini Project**
+# Developer
 
-**Domain:** Cloud Computing • Cybersecurity • Machine Learning • Business Analytics
+**Developed by:** **Praveen**
+
+**Program:** B.Tech – Computer Science and Business Systems (CSBS)
+
+**Project Type:** IEEE-Inspired Mini Project
+
+**Domain:**
+- Cloud Computing
+- Cybersecurity
+- Machine Learning
+- Business Analytics
+- Full Stack Web Development
 
 ---
 
-⭐ If you found this project interesting, consider giving it a **Star** on GitHub.
+# About the Developer
+
+This project was independently designed and developed by **Praveen** as a CSBS mini project. It demonstrates practical implementation of secure backend development, modern frontend design, machine learning integration, business risk analysis, and cloud security concepts using open-source technologies.
+
+The project focuses on building a professional Security Operations Center (SOC)-style platform that is scalable, modular, and ready for future enhancements such as real-time threat ingestion, cloud log integration, and advanced security analytics.
+
+---
+
+## License
+
+This project is intended for **educational and research purposes**.
+
+You are welcome to learn from the code, but please provide appropriate credit if you reuse significant parts of the project.
+
+---
+
+⭐ If you found this project useful, consider giving it a **Star** on GitHub.
+
