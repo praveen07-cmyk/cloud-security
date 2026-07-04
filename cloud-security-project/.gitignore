@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.db
+models/rf_model.pkl
+datasets/*.csv
+reports/*.pdf
+reports/*.csv
+.vscode/
+.idea/
+.DS_Store

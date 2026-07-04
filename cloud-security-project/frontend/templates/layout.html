@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>{% block title %}Cloud Security Analytics{% endblock %}</title>
+
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body data-theme="dark">
+  <div class="toast-container-custom" id="toastContainer"></div>
+
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <i class="bi bi-shield-lock-fill"></i>
+        <span>CloudSec AI</span>
+      </div>
+      <nav class="sidebar-nav" aria-label="Primary">
+        <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+          <i class="bi bi-grid-1x2-fill"></i> Dashboard
+        </a>
+        <a href="{{ url_for('analytics') }}" class="nav-link {% if active_page == 'analytics' %}active{% endif %}">
+          <i class="bi bi-bar-chart-line-fill"></i> Analytics
+        </a>
+        <a href="{{ url_for('reports') }}" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
+          <i class="bi bi-file-earmark-text-fill"></i> Reports
+        </a>
+        <a href="{{ url_for('settings') }}" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+          <i class="bi bi-gear-fill"></i> Settings
+        </a>
+        <a href="{{ url_for('profile') }}" class="nav-link {% if active_page == 'profile' %}active{% endif %}">
+          <i class="bi bi-person-circle"></i> Profile
+        </a>
+        <hr style="border-color: var(--border-color); margin: 1rem 0.75rem;">
+        <a href="{{ url_for('logout') }}" class="nav-link">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <button class="theme-toggle-btn mobile-toggle-btn" id="mobileSidebarToggle" type="button" aria-label="Toggle sidebar">
+            <i class="bi bi-list"></i>
+          </button>
+          <div class="search-box d-none d-md-flex">
+            <i class="bi bi-search"></i>
+            <input type="text" id="globalSearch" placeholder="Search IP, attack type, analyst..." aria-label="Search incidents">
+          </div>
+          <span class="demo-badge"><i class="bi bi-circle-fill" style="font-size:6px;"></i> DEMO MODE</span>
+        </div>
+
+        <div class="topbar-actions">
+          <span class="live-clock" id="liveClock">--:--:--</span>
+
+          <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Toggle theme" aria-label="Toggle theme">
+            <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+          </button>
+
+          <div class="dropdown">
+            <button class="notif-btn" data-bs-toggle="dropdown" type="button" aria-label="Notifications">
+              <i class="bi bi-bell-fill"></i>
+              <span class="notif-dot pulse-dot"></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end p-2 shadow-lg" style="min-width:300px; background: var(--card-bg); border: 1px solid var(--border-color);">
+              <li class="px-2 py-1 text-muted small">Recent Notifications</li>
+              {% if notification_items is defined and notification_items %}
+                {% for notification in notification_items[:3] %}
+                  <li>
+                    <a class="dropdown-item small" href="#" style="white-space: normal; color: var(--text-color);">
+                      <i class="bi bi-exclamation-triangle-fill me-2 {% if notification.severity == 'Critical' %}text-danger{% elif notification.severity == 'High' %}text-warning{% else %}text-info{% endif %}"></i>
+                      <strong>{{ notification.title }}</strong><br>
+                      <span style="color: var(--text-muted);">{{ notification.detail }}</span>
+                    </a>
+                  </li>
+                {% endfor %}
+              {% else %}
+                <li><a class="dropdown-item small" href="#" style="color: var(--text-color);"><i class="bi bi-info-circle text-info me-2"></i>No new notifications</a></li>
+              {% endif %}
+            </ul>
+          </div>
+
+          <div class="dropdown">
+            {% set nav_name = username or (current_user.display_name if current_user.is_authenticated else session.get('login_name') or 'admin') %}
+            {% set nav_role = session.get('role') or (current_user.role if current_user.is_authenticated else 'SOC Analyst') %}
+            <button class="profile-chip btn btn-link text-decoration-none p-0" data-bs-toggle="dropdown" type="button" aria-label="Profile menu">
+              <div class="profile-avatar">{{ nav_name[0]|upper }}</div>
+              <div class="d-none d-lg-block text-start">
+                <div style="font-size:0.85rem; font-weight:600; color:var(--text-color);">{{ nav_name }}</div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">{{ nav_role }}</div>
+              </div>
+              <i class="bi bi-chevron-down d-none d-lg-block" style="font-size:0.7rem; color:var(--text-muted);"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" style="background: var(--card-bg); border: 1px solid var(--border-color);">
+              <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-person me-2"></i>My Profile</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('settings') }}"><i class="bi bi-gear me-2"></i>Settings</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-warning border-0 mt-3" style="background: rgba(245,158,11,0.12); color: var(--text-color);">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

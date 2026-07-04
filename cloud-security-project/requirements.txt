@@ -1,0 +1,12 @@
+flask
+flask-login
+flask-socketio
+eventlet
+pandas
+numpy
+scikit-learn
+joblib
+scapy
+sqlalchemy
+reportlab
+python-dotenv

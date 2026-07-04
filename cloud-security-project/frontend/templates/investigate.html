@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+{% set active_page = "dashboard" %}
+{% block title %}Investigate - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+{% set incident_data = incident if incident is defined and incident else (threats[0] if threats is defined and threats else none) %}
+{% set reputation_data = reputation_data if reputation_data is defined else reputation if reputation is defined else none %}
+{% set risk_data = risk_data if risk_data is defined else none %}
+{% set recommendations = recommendations if recommendations is defined else [] %}
+{% set timeline_data = timeline if timeline is defined else [] %}
+
+<section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <div class="section-title mb-1"><i class="bi bi-search"></i> Threat Investigation</div>
+    <p class="mb-0" style="color: var(--text-muted);">Detailed view of a single incident, including reputation, risk, timeline, and recommended response.</p>
+  </div>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-glass"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+</section>
+
+{% if incident_data %}
+<div class="row g-3 mb-3">
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-bug-fill"></i> Threat Details</div>
+      <div class="info-row"><span class="label">Source IP</span><span class="value">{{ incident_data.source_ip }}</span></div>
+      <div class="info-row"><span class="label">Destination IP</span><span class="value">{{ incident_data.destination_ip }}</span></div>
+      <div class="info-row"><span class="label">Attack Type</span><span class="value">{{ incident_data.attack_type }}</span></div>
+      <div class="info-row"><span class="label">Attack Time</span><span class="value">{{ incident_data.time }}</span></div>
+      <div class="info-row"><span class="label">Severity</span><span class="value badge-status badge-severity-{{ incident_data.severity }}">{{ incident_data.severity }}</span></div>
+      <div class="info-row"><span class="label">Confidence Score</span><span class="value">{{ incident_data.confidence }}%</span></div>
+      <div class="info-row"><span class="label">Threat Status</span><span class="value">{{ incident_data.status }}</span></div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-globe2"></i> IP Reputation</div>
+      {% if reputation_data %}
+      <div class="text-center my-3">
+        <div style="font-size:1.6rem; font-weight:700; color: var(--{{ 'red' if reputation_data.reputation == 'Dangerous' else 'orange' if reputation_data.reputation == 'Suspicious' else 'text-muted' }});">
+          {{ reputation_data.reputation }}
+        </div>
+      </div>
+      <div class="info-row"><span class="label">Attack Count</span><span class="value">{{ reputation_data.attack_count }}</span></div>
+      <div class="info-row"><span class="label">Reputation Score</span><span class="value">{{ reputation_data.score }}</span></div>
+      <div class="info-row"><span class="label">Most Common Attack</span><span class="value">{{ reputation_data.most_common_attack or 'Unknown' }}</span></div>
+      {% else %}
+      <div class="text-muted">No reputation data available for this incident.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-graph-up-arrow"></i> Business Risk</div>
+      {% if risk_data %}
+      <div class="text-center my-2">
+        <div style="font-size:1.8rem; font-weight:700; color: var(--accent);">{{ risk_data.risk_score }}</div>
+        <div style="font-size:0.78rem; color:var(--text-muted);">Risk Score / 100</div>
+      </div>
+      <div class="info-row"><span class="label">Business Impact</span><span class="value">{{ risk_data.business_impact }}</span></div>
+      <div class="info-row"><span class="label">Priority</span><span class="value">{{ risk_data.priority }}</span></div>
+      <div class="info-row"><span class="label">Estimated Downtime</span><span class="value">{{ risk_data.estimated_downtime }}</span></div>
+      <div class="info-row"><span class="label">Estimated Financial Loss</span><span class="value">{{ risk_data.estimated_financial_loss }}</span></div>
+      {% else %}
+      <div class="text-muted">Risk data is not available for this incident.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="ai-panel h-100">
+      <div class="d-flex align-items-start gap-3">
+        <div class="ai-icon"><i class="bi bi-robot"></i></div>
+        <div class="flex-grow-1">
+          <div style="font-weight:700; margin-bottom:0.6rem;">AI Recommendations</div>
+          {% if recommendations %}
+            {% for rec in recommendations %}
+            <div class="recommendation-item"><i class="bi bi-arrow-right-circle-fill"></i> {{ rec }}</div>
+            {% endfor %}
+          {% else %}
+            <div class="text-muted">No recommendation data available.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-person-badge-fill"></i> Assigned Analyst</div>
+      <div class="info-row"><span class="label">Assigned To</span><span class="value">{{ incident_data.assigned_to }}</span></div>
+      <div class="info-row"><span class="label">Analyst Role</span><span class="value">{{ session.get('role') or 'SOC Analyst' }}</span></div>
+      <div class="info-row"><span class="label">Investigation Status</span><span class="value">{{ incident_data.status }}</span></div>
+      <hr style="border-color: var(--border-color);">
+      <div class="section-title"><i class="bi bi-hourglass-split"></i> Attack Timeline</div>
+      <div class="timeline">
+        {% if timeline_data %}
+          {% for event in timeline_data %}
+          <div class="timeline-item">
+            <div class="time">{{ event.time }}</div>
+            <div class="event">{{ event.event }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted">Timeline data is not available.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="glass-card">
+  <div class="section-title"><i class="bi bi-exclamation-triangle-fill"></i> Incident Not Found</div>
+  <p class="mb-0" style="color: var(--text-muted);">No incident data is available for this investigation view.</p>
+</div>
+{% endif %}
+{% endblock %}

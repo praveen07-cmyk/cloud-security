@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+{% set active_page = "reports" %}
+{% block title %}Reports - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+<section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <div class="section-title mb-1"><i class="bi bi-file-earmark-text-fill"></i> Security Reports</div>
+    <p class="mb-0" style="color: var(--text-muted);">Prepare operational reporting from the current incident snapshot.</p>
+  </div>
+  <div class="badge-status" style="background: rgba(0,229,255,0.12); color: var(--accent);">PDF / CSV Ready</div>
+</section>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="glass-card text-center h-100">
+      <i class="bi bi-calendar-day" style="font-size:1.9rem; color: var(--accent);"></i>
+      <h3 class="h5 mt-3 mb-1">Daily Report</h3>
+      <p class="mb-3" style="color: var(--text-muted);">Operational summary of today's incidents.</p>
+      <span class="badge-status" style="background: rgba(34,197,94,0.12); color: var(--green);">Placeholder schedule</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="glass-card text-center h-100">
+      <i class="bi bi-calendar-week" style="font-size:1.9rem; color: var(--blue);"></i>
+      <h3 class="h5 mt-3 mb-1">Weekly Report</h3>
+      <p class="mb-3" style="color: var(--text-muted);">Threat trend and response summary.</p>
+      <span class="badge-status" style="background: rgba(37,99,235,0.12); color: var(--blue);">Placeholder schedule</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="glass-card text-center h-100">
+      <i class="bi bi-calendar-month" style="font-size:1.9rem; color: var(--orange);"></i>
+      <h3 class="h5 mt-3 mb-1">Monthly Report</h3>
+      <p class="mb-3" style="color: var(--text-muted);">Executive security overview for leadership.</p>
+      <span class="badge-status" style="background: rgba(245,158,11,0.12); color: var(--orange);">Placeholder schedule</span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-file-earmark-pdf-fill"></i> Export PDF</div>
+      <p style="color: var(--text-muted);">Generate a professional incident PDF using the current demo incident set.</p>
+      <a href="{{ url_for('download_pdf_report') }}" class="btn-cyan"><i class="bi bi-download me-1"></i> Export PDF</a>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-filetype-csv"></i> Export CSV</div>
+      <p style="color: var(--text-muted);">Download the incident table for spreadsheet review or downstream tools.</p>
+      <a href="{{ url_for('download_csv_report') }}" class="btn-outline-glass"><i class="bi bi-download me-1"></i> Export CSV</a>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-bar-chart-fill"></i> Threat Summary</div>
+      <p class="mb-0" style="color: var(--text-muted);">{{ incidents|length }} incidents are currently present in the demo snapshot, with Critical and High severity events requiring the most attention.</p>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-cash-stack"></i> Business Risk Summary</div>
+      <p class="mb-0" style="color: var(--text-muted);">The fixed incident set produces a measurable business risk score and demonstrates executive reporting with downtime and loss estimates.</p>
+    </div>
+  </div>
+</div>
+
+<div class="glass-card">
+  <div class="section-title"><i class="bi bi-clock-history"></i> Report History</div>
+  <p class="mb-0" style="color: var(--text-muted);">Historical report storage is a future enhancement. Current exports are generated on demand from the live demo snapshot.</p>
+</div>
+{% endblock %}

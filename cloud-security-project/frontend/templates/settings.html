@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% set active_page = "settings" %}
+{% block title %}Settings - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+<section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <div class="section-title mb-1"><i class="bi bi-gear-fill"></i> Settings</div>
+    <p class="mb-0" style="color: var(--text-muted);">Tune appearance, alerts, and security preferences for the SOC workspace.</p>
+  </div>
+  <span class="badge-status" style="background: rgba(0,229,255,0.12); color: var(--accent);">Demo Config</span>
+</section>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="glass-card mb-3">
+      <div class="section-title"><i class="bi bi-palette-fill"></i> Appearance</div>
+      <div class="d-flex justify-content-between align-items-center py-2">
+        <span>Dark / Light Theme Toggle</span>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="settingsThemeSwitch" checked>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center py-2">
+        <span>Enable animations</span>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" checked>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <div class="section-title"><i class="bi bi-bell-fill"></i> Notification Settings</div>
+      <div class="d-flex justify-content-between align-items-center py-2"><span>Critical alert notifications</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div></div>
+      <div class="d-flex justify-content-between align-items-center py-2"><span>High severity alerts</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div></div>
+      <div class="d-flex justify-content-between align-items-center py-2"><span>Weekly report email</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div></div>
+      <div class="d-flex justify-content-between align-items-center py-2"><span>Sound alerts</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox"></div></div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="glass-card mb-3">
+      <div class="section-title"><i class="bi bi-grid-1x2-fill"></i> Dashboard Preferences</div>
+      <div class="info-row"><span class="label">Default View</span><span class="value">Dashboard</span></div>
+      <div class="info-row"><span class="label">Refresh Mode</span><span class="value">Manual</span></div>
+      <div class="info-row"><span class="label">Heatmap Density</span><span class="value">Standard</span></div>
+      <div class="info-row"><span class="label">Notification Center</span><span class="value">Enabled</span></div>
+    </div>
+
+    <div class="glass-card mb-3">
+      <div class="section-title"><i class="bi bi-shield-lock-fill"></i> Demo Mode Information</div>
+      <p class="mb-0" style="color: var(--text-muted);">The platform is intentionally seeded with fixed incidents and demo credentials for a stable SOC walkthrough.</p>
+    </div>
+
+    <div class="glass-card">
+      <div class="section-title"><i class="bi bi-hdd-network-fill"></i> Security Settings</div>
+      <div class="info-row"><span class="label">Authentication</span><span class="value">Session-backed demo login</span></div>
+      <div class="info-row"><span class="label">Packet Capture</span><span class="value">Future-ready placeholder</span></div>
+      <div class="info-row"><span class="label">Database</span><span class="value">SQLite-backed persistence</span></div>
+      <button class="btn btn-outline-glass mt-2" type="button" onclick="showToast('Security settings are demo-only in this build.', 'info')">Open Security Settings</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

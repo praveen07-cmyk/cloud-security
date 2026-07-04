@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+{% set active_page = "analytics" %}
+{% block title %}Analytics - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+<section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+  <div>
+    <div class="section-title mb-1"><i class="bi bi-bar-chart-line-fill"></i> Security Analytics</div>
+    <p class="mb-0" style="color: var(--text-muted);">Operational threat metrics based on the current demo incident set.</p>
+  </div>
+  <div class="badge-status" style="background: rgba(0,229,255,0.12); color: var(--accent);">Weekly + Severity Insights</div>
+</section>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-calendar-week"></i> Weekly Threat Chart</div>
+      <div class="chart-wrap"><canvas id="weeklyThreatChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-bug-fill"></i> Attack Type Chart</div>
+      <div class="chart-wrap"><canvas id="attackTypeChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-exclamation-diamond-fill"></i> Severity Distribution Chart</div>
+      <div class="chart-wrap"><canvas id="severityChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-kanban-fill"></i> Incident Status Chart</div>
+      <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-graph-up"></i> Risk Trend Summary</div>
+      <p style="color: var(--text-muted);" class="mb-0">The current demo set is concentrated around a single time window, so the overall trend remains stable and reviewable in one view.</p>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-list-ol"></i> Top Attack Types</div>
+      <div class="table-responsive">
+        <table class="security-table mb-0">
+          <thead><tr><th>Type</th><th>Count</th></tr></thead>
+          <tbody>
+            {% for attack, count in attack_distribution.items() %}
+            <tr><td>{{ attack }}</td><td>{{ count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="glass-card h-100">
+      <div class="section-title"><i class="bi bi-person-check-fill"></i> Top Analysts</div>
+      <div class="table-responsive">
+        <table class="security-table mb-0">
+          <thead><tr><th>Analyst</th><th>Incidents</th></tr></thead>
+          <tbody>
+            {% for analyst, total in [('Praveen', 1), ('Sanjay', 1), ('Sai Nathan', 1), ('Faran', 1)] %}
+            <tr><td>{{ analyst }}</td><td>{{ total }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const WEEKLY_LABELS = {{ weekly_labels|tojson }};
+  const WEEKLY_COUNTS = {{ weekly_counts|tojson }};
+  const ATTACK_TYPE_DATA = {{ attack_distribution|tojson }};
+  const SEVERITY_DATA = {{ severity_distribution|tojson }};
+  const STATUS_DATA = {{ status_distribution|tojson }};
+
+  const weeklyCanvas = document.getElementById('weeklyThreatChart');
+  if (weeklyCanvas) {
+    weeklyCanvas.id = 'weeklyChart';
+  }
+
+  initAnalyticsCharts(WEEKLY_LABELS, WEEKLY_COUNTS, ATTACK_TYPE_DATA, SEVERITY_DATA, STATUS_DATA);
+</script>
+{% endblock %}

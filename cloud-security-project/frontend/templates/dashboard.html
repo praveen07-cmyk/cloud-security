@@ -1,0 +1,362 @@
+{% extends "layout.html" %}
+{% set active_page = "dashboard" %}
+{% block title %}Dashboard - Cloud Security Analytics{% endblock %}
+
+{% block content %}
+
+<!-- Metric Cards -->
+<div class="metrics-grid">
+  <div class="glass-card metric-card fade-in-up">
+    <div class="metric-icon" style="background: rgba(0,229,255,0.12); color: var(--accent);"><i class="bi bi-shield-check"></i></div>
+    <div class="metric-value counter-animate" data-target="{{ security_score }}">0</div>
+    <div class="metric-label">Cloud Security Score</div>
+  </div>
+
+  <div class="glass-card metric-card fade-in-up">
+    <div class="metric-icon" style="background: rgba(239,68,68,0.12); color: var(--red);"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <div class="metric-value counter-animate" data-target="{{ active_threats }}">0</div>
+    <div class="metric-label">Active Threats</div>
+  </div>
+
+  <div class="glass-card metric-card fade-in-up">
+    <div class="metric-icon" style="background: rgba(245,158,11,0.12); color: var(--orange);"><i class="bi bi-bullseye"></i></div>
+    <div class="metric-value counter-animate" data-target="{{ threat_score }}">0</div>
+    <div class="metric-label">Threat Score</div>
+  </div>
+
+  <div class="glass-card metric-card fade-in-up">
+    <div class="metric-icon" style="background: rgba(37,99,235,0.12); color: var(--blue);"><i class="bi bi-diagram-3-fill"></i></div>
+    <div class="metric-value counter-animate" data-target="{{ packets_captured }}">0</div>
+    <div class="metric-label">Packets Captured (session)</div>
+  </div>
+
+  <div class="glass-card metric-card fade-in-up">
+    <div class="metric-icon" style="background: rgba(245,158,11,0.12); color: var(--orange);"><i class="bi bi-speedometer2"></i></div>
+    <div class="metric-value">{{ risk_level }}</div>
+    <div class="metric-label">Overall Risk Level</div>
+  </div>
+
+  <div class="glass-card metric-card fade-in-up">
+    <div class="metric-icon" style="background: rgba(34,197,94,0.12); color: var(--green);"><i class="bi bi-cloud-check-fill"></i></div>
+    <div class="metric-value">{{ cloud_health }}</div>
+    <div class="metric-label">Cloud Infrastructure Health</div>
+  </div>
+
+  <div class="glass-card metric-card fade-in-up">
+    <div class="metric-icon" style="background: rgba(59,130,246,0.12); color: var(--blue);"><i class="bi bi-shield-shaded"></i></div>
+    <div class="metric-value">{{ system_health }}</div>
+    <div class="metric-label">System Health Status</div>
+  </div>
+</div>
+
+{% if not model_available %}
+<div class="alert alert-info d-flex align-items-center gap-2" style="background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.3); color: var(--text-color);">
+  <i class="bi bi-info-circle-fill" style="color: var(--accent);"></i>
+  <div style="font-size: 0.85rem;">Running in <strong>rule-based mode</strong> — no ML model trained yet. Dashboard is fully functional using the built-in risk engine. Train a model anytime via <code>ml/train_model.py</code>.</div>
+</div>
+{% endif %}
+
+<!-- Charts -->
+<div class="charts-grid">
+  <div class="glass-card">
+    <div class="section-title"><i class="bi bi-activity"></i> Live Traffic Overview</div>
+    <div class="chart-wrap"><canvas id="liveTrafficChart"></canvas></div>
+  </div>
+  <div class="glass-card">
+    <div class="section-title"><i class="bi bi-pie-chart-fill"></i> Attack Distribution</div>
+    <div class="chart-wrap"><canvas id="attackDistributionChart"></canvas></div>
+  </div>
+</div>
+
+<div class="bottom-grid">
+  <div class="glass-card">
+    <div class="section-title"><i class="bi bi-speedometer"></i> Severity Gauge</div>
+    <div class="gauge-wrap"><canvas id="severityGaugeChart"></canvas></div>
+    <div class="text-center mt-2" style="font-size:0.8rem; color:var(--text-muted);">Based on {{ incidents|length }} active demo incidents</div>
+  </div>
+
+  <div class="glass-card">
+    <div class="section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Threat Heatmap</div>
+    <div class="heatmap-grid" id="threatHeatmap"></div>
+    <div class="d-flex justify-content-between mt-2" style="font-size:0.72rem; color:var(--text-muted);">
+      <span>12 AM</span><span>12 PM</span><span>11 PM</span>
+    </div>
+  </div>
+
+  <div class="glass-card">
+    <div class="section-title"><i class="bi bi-check2-square"></i> Security Checklist</div>
+    <div class="checklist-item"><i class="bi bi-check-circle-fill done"></i> Firewall rules active</div>
+    <div class="checklist-item"><i class="bi bi-check-circle-fill done"></i> MFA enforced on admin accounts</div>
+    <div class="checklist-item"><i class="bi bi-exclamation-circle-fill pending"></i> Patch pending on 1 endpoint</div>
+    <div class="checklist-item"><i class="bi bi-check-circle-fill done"></i> Backup verified (24h)</div>
+    <div class="checklist-item"><i class="bi bi-exclamation-circle-fill pending"></i> WAF rule review due</div>
+  </div>
+</div>
+
+<!-- Incident status cards -->
+<div class="glass-card mb-3">
+  <div class="section-title"><i class="bi bi-kanban-fill"></i> Incident Status Overview</div>
+  <div class="row g-3">
+    {% set status_colors = {'Open': 'blue', 'Investigating': 'orange', 'Blocked': 'green', 'Resolved': 'green'} %}
+    {% for status in ['Open', 'Investigating', 'Blocked'] %}
+    <div class="col-md-4">
+      <div class="status-card" style="border-color: var(--{{ status_colors.get(status, 'blue') }});">
+        <div style="font-size:1.5rem; font-weight:700; color: var(--{{ status_colors.get(status, 'blue') }});">
+          {{ incidents|selectattr('status', 'equalto', status)|list|length }}
+        </div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">{{ status }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="glass-card mb-3">
+  <div class="section-title"><i class="bi bi-bell-fill"></i> Notification Center</div>
+  <div class="row g-3">
+    {% set notif_colors = {'Critical': 'red', 'High': 'orange', 'Medium': 'blue', 'Low': 'green'} %}
+    {% for level in ['Critical', 'High', 'Medium', 'Low'] %}
+    <div class="col-md-3">
+      <div class="status-card" style="border-color: var(--{{ notif_colors.get(level, 'blue') }});">
+        <div style="font-size:1.5rem; font-weight:700; color: var(--{{ notif_colors.get(level, 'blue') }});">
+          {{ notification_counts.get(level, 0) }}
+        </div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">{{ level }} Alerts</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="mt-3" style="font-size:0.85rem; color:var(--text-muted);">Latest alerts are derived from the current incident set and pushed over Socket.IO in real time.</div>
+</div>
+
+<div class="row g-3">
+  <!-- Recent Alerts Table -->
+  <div class="col-lg-8">
+    <div class="glass-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        {% extends "layout.html" %}
+        {% set active_page = "dashboard" %}
+        {% block title %}Dashboard - Cloud Security Analytics{% endblock %}
+
+        {% block content %}
+        <section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+          <div>
+            <div class="section-title mb-1"><i class="bi bi-speedometer2"></i> Security Operations Center</div>
+            <p class="mb-0" style="color: var(--text-muted);">Monitor cloud incidents, review risk, and coordinate response from a single command center.</p>
+          </div>
+          <span class="demo-badge"><i class="bi bi-circle-fill" style="font-size:6px;"></i> DEMO MODE</span>
+        </section>
+
+        <section class="metrics-grid mb-3">
+          <article class="glass-card metric-card fade-in-up">
+            <div class="metric-icon" style="background: rgba(0,229,255,0.12); color: var(--accent);"><i class="bi bi-shield-check"></i></div>
+            <div class="metric-value counter-animate" id="securityScore" data-target="{{ security_score }}">0</div>
+            <div class="metric-label">Cloud Security Score</div>
+          </article>
+          <article class="glass-card metric-card fade-in-up">
+            <div class="metric-icon" style="background: rgba(245,158,11,0.12); color: var(--orange);"><i class="bi bi-bullseye"></i></div>
+            <div class="metric-value counter-animate" id="threatScore" data-target="{{ threat_score }}">0</div>
+            <div class="metric-label">Threat Score</div>
+          </article>
+          <article class="glass-card metric-card fade-in-up">
+            <div class="metric-icon" style="background: rgba(239,68,68,0.12); color: var(--red);"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="metric-value counter-animate" id="activeThreats" data-target="{{ active_threats }}">0</div>
+            <div class="metric-label">Active Threats</div>
+          </article>
+          <article class="glass-card metric-card fade-in-up">
+            <div class="metric-icon" style="background: rgba(37,99,235,0.12); color: var(--blue);"><i class="bi bi-diagram-3-fill"></i></div>
+            <div class="metric-value counter-animate" id="packetsCaptured" data-target="{{ packets_captured }}">0</div>
+            <div class="metric-label">Packets Captured</div>
+          </article>
+          <article class="glass-card metric-card fade-in-up">
+            <div class="metric-icon" style="background: rgba(34,197,94,0.12); color: var(--green);"><i class="bi bi-speedometer2"></i></div>
+            <div class="metric-value" id="riskLevel">{{ risk_level }}</div>
+            <div class="metric-label">Risk Level</div>
+          </article>
+        </section>
+
+        {% if not model_available %}
+        <div class="alert alert-info border-0 mb-3" style="background: rgba(0,229,255,0.08); color: var(--text-color); border: 1px solid rgba(0,229,255,0.25);">
+          <i class="bi bi-info-circle-fill me-2" style="color: var(--accent);"></i>
+          Running in <strong>rule-based mode</strong> until a trained model is added.
+        </div>
+        {% endif %}
+
+        <section class="row g-3 mb-3">
+          <div class="col-lg-3 col-md-6">
+            <div class="glass-card status-card h-100">
+              <div class="section-title"><i class="bi bi-kanban"></i> Incident Status</div>
+              <div class="d-flex justify-content-between py-1"><span>Open</span><strong>{{ incidents|selectattr('status', 'equalto', 'Open')|list|length }}</strong></div>
+              <div class="d-flex justify-content-between py-1"><span>Investigating</span><strong>{{ incidents|selectattr('status', 'equalto', 'Investigating')|list|length }}</strong></div>
+              <div class="d-flex justify-content-between py-1"><span>Blocked</span><strong>{{ incidents|selectattr('status', 'equalto', 'Blocked')|list|length }}</strong></div>
+              <div class="d-flex justify-content-between py-1"><span>Resolved</span><strong>0</strong></div>
+            </div>
+          </div>
+
+          <div class="col-lg-5 col-md-6">
+            <div class="glass-card h-100">
+              <div class="section-title"><i class="bi bi-hdd-network"></i> Cloud Infrastructure Health</div>
+              <div class="row g-2">
+                <div class="col-6"><div class="status-card"><strong>Cloud Server</strong><div class="text-success">Operational</div></div></div>
+                <div class="col-6"><div class="status-card"><strong>Database</strong><div class="text-success">Healthy</div></div></div>
+                <div class="col-6"><div class="status-card"><strong>API Gateway</strong><div class="text-success">Live</div></div></div>
+                <div class="col-6"><div class="status-card"><strong>Firewall</strong><div class="text-warning">Reviewing</div></div></div>
+                <div class="col-12"><div class="status-card"><strong>Storage</strong><div class="text-success">Available</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="glass-card h-100">
+              <div class="section-title"><i class="bi bi-check2-square"></i> Security Checklist</div>
+              <div class="checklist-item"><i class="bi bi-check-circle-fill done"></i> Firewall Enabled</div>
+              <div class="checklist-item"><i class="bi bi-check-circle-fill done"></i> SSL Active</div>
+              <div class="checklist-item"><i class="bi bi-check-circle-fill done"></i> MFA Enabled</div>
+              <div class="checklist-item"><i class="bi bi-check-circle-fill done"></i> Backup Healthy</div>
+              <div class="checklist-item"><i class="bi bi-exclamation-circle-fill pending"></i> Patch Pending</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="row g-3 mb-3">
+          <div class="col-lg-8">
+            <div class="glass-card">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div class="section-title mb-0"><i class="bi bi-list-ul"></i> Recent Alerts</div>
+                <div class="d-flex gap-2 flex-wrap">
+                  <button id="loadDemoBtn" class="quick-action-btn" type="button"><i class="bi bi-arrow-repeat"></i> Load Demo Threats</button>
+                  <a href="{{ url_for('reports') }}" class="quick-action-btn text-decoration-none"><i class="bi bi-file-earmark-pdf-fill"></i> Generate Report</a>
+                  <a href="{{ url_for('download_csv_report') }}" class="quick-action-btn text-decoration-none"><i class="bi bi-filetype-csv"></i> Export CSV</a>
+                  <button class="quick-action-btn" type="button" onclick="window.location.reload()"><i class="bi bi-arrow-clockwise"></i> Refresh Dashboard</button>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="security-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Source IP</th>
+                      <th>Destination IP</th>
+                      <th>Attack Type</th>
+                      <th>Severity</th>
+                      <th>Confidence</th>
+                      <th>Assigned To</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="alertsTableBody">
+                    {% for inc in incidents %}
+                    <tr>
+                      <td>{{ inc.time }}</td>
+                      <td><a class="ip-link text-decoration-none" href="{{ url_for('investigate', ip=inc.source_ip) }}">{{ inc.source_ip }}</a></td>
+                      <td>{{ inc.destination_ip }}</td>
+                      <td>{{ inc.attack_type }}</td>
+                      <td><span class="badge-status badge-severity-{{ inc.severity }}">{{ inc.severity }}</span></td>
+                      <td>{{ inc.confidence }}%</td>
+                      <td>{{ inc.assigned_to }}</td>
+                      <td>{{ inc.status }}</td>
+                      <td><a href="{{ url_for('investigate', ip=inc.source_ip) }}" class="btn btn-sm btn-outline-glass">Investigate</a></td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="glass-card mb-3">
+              <div class="section-title"><i class="bi bi-clock-history"></i> Recent Activity</div>
+              {% for inc in incidents %}
+              <div class="activity-item">
+                <div class="activity-dot" style="background: var(--{{ 'red' if inc.severity == 'Critical' else 'orange' if inc.severity == 'High' else 'blue' }});"></div>
+                <div>
+                  <div>{{ inc.attack_type }} from {{ inc.source_ip }}</div>
+                  <div style="font-size:0.75rem; color: var(--text-muted);">{{ inc.time }} · assigned to {{ inc.assigned_to }}</div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <div class="glass-card">
+              <div class="section-title"><i class="bi bi-robot"></i> AI Assistant Recommendation</div>
+              <div class="recommendation-item"><i class="bi bi-arrow-right-circle-fill"></i> Prioritize the <strong>DDoS</strong> and <strong>Brute Force</strong> incidents.</div>
+              <div class="recommendation-item"><i class="bi bi-arrow-right-circle-fill"></i> Review the <strong>SQL Injection</strong> attempt and patch the affected endpoint.</div>
+              <div class="recommendation-item"><i class="bi bi-arrow-right-circle-fill"></i> Continue monitoring the <strong>Port Scan</strong> source for follow-up activity.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="row g-3 mb-3">
+          <div class="col-lg-6">
+            <div class="glass-card">
+              <div class="section-title"><i class="bi bi-activity"></i> Live Traffic Chart</div>
+              <div class="chart-wrap"><canvas id="liveTrafficChart"></canvas></div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="glass-card">
+              <div class="section-title"><i class="bi bi-pie-chart-fill"></i> Attack Distribution Chart</div>
+              <div class="chart-wrap"><canvas id="attackDistributionChart"></canvas></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="row g-3 mb-3">
+          <div class="col-lg-4">
+            <div class="glass-card h-100">
+              <div class="section-title"><i class="bi bi-speedometer2"></i> Severity Gauge</div>
+              <div class="gauge-wrap"><canvas id="severityGaugeChart"></canvas></div>
+            </div>
+          </div>
+          <div class="col-lg-8">
+            <div class="glass-card h-100">
+              <div class="section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Threat Heatmap</div>
+              <div class="heatmap-grid" id="threatHeatmap"></div>
+              <div class="d-flex justify-content-between mt-2" style="font-size:0.72rem; color:var(--text-muted);"><span>12 AM</span><span>12 PM</span><span>11 PM</span></div>
+            </div>
+          </div>
+        </section>
+        {% endblock %}
+
+        {% block scripts %}
+        <script>
+          const ATTACK_DISTRIBUTION = {{ attack_distribution|tojson }};
+          const TRAFFIC_PATTERN = {{ traffic_pattern|tojson }};
+          const SECURITY_SCORE = {{ security_score }};
+
+          const loadDemoBtn = document.getElementById('loadDemoBtn');
+          if (loadDemoBtn) {
+            loadDemoBtn.addEventListener('click', async () => {
+              try {
+                const response = await fetch('{{ url_for('load_demo_threats') }}');
+                const data = await response.json();
+                const body = document.getElementById('alertsTableBody');
+                if (body && Array.isArray(data.incidents)) {
+                  body.innerHTML = data.incidents.map((inc) => `
+                    <tr>
+                      <td>${inc.time}</td>
+                      <td><a class="ip-link text-decoration-none" href="/investigate/${inc.source_ip}">${inc.source_ip}</a></td>
+                      <td>${inc.destination_ip}</td>
+                      <td>${inc.attack_type}</td>
+                      <td><span class="badge-status badge-severity-${inc.severity}">${inc.severity}</span></td>
+                      <td>${inc.confidence}%</td>
+                      <td>${inc.assigned_to}</td>
+                      <td>${inc.status}</td>
+                      <td><a href="/investigate/${inc.source_ip}" class="btn btn-sm btn-outline-glass">Investigate</a></td>
+                    </tr>
+                  `).join('');
+                  showToast('Demo threats loaded successfully.', 'success');
+                }
+              } catch (error) {
+                showToast('Unable to load demo threats right now.', 'danger');
+              }
+            });
+          }
+
+          initDashboardCharts(ATTACK_DISTRIBUTION, TRAFFIC_PATTERN, SECURITY_SCORE);
+          initThreatHeatmap();
+        </script>
+        {% endblock %}

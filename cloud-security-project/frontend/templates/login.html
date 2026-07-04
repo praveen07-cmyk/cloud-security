@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Cloud Security Analytics</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+<body class="login-body">
+
+  <div class="login-card">
+    <div class="login-logo"><i class="bi bi-shield-lock-fill"></i></div>
+    <div class="login-title">Cloud Security Analytics</div>
+    <div class="login-subtitle">AI-Powered Threat Response Platform</div>
+
+    {% with messages = get_flashed_messages() %}
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login - Cloud Security Analytics</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+        <style>
+          .login-shell {
+            width: min(1180px, calc(100% - 2rem));
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 1.25rem;
+            align-items: stretch;
+            position: relative;
+            z-index: 1;
+          }
+
+          .login-backdrop {
+            position: fixed;
+            inset: 0;
+            background:
+              radial-gradient(circle at 15% 20%, rgba(0, 229, 255, 0.12), transparent 25%),
+              radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.18), transparent 28%),
+              linear-gradient(180deg, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0.98));
+            pointer-events: none;
+          }
+
+          .login-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(50px);
+            opacity: 0.55;
+            pointer-events: none;
+          }
+
+          .orb-one {
+            width: 180px;
+            height: 180px;
+            background: rgba(0, 229, 255, 0.22);
+            top: 8%;
+            left: 12%;
+          }
+
+          .orb-two {
+            width: 240px;
+            height: 240px;
+            background: rgba(37, 99, 235, 0.22);
+            bottom: 8%;
+            right: 10%;
+          }
+
+          .login-card, .login-aside {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: none;
+          }
+
+          .login-aside {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+          }
+
+          .mini-feature-list {
+            display: grid;
+            gap: 0.8rem;
+          }
+
+          .mini-feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.9rem 1rem;
+            border-radius: 14px;
+            background: rgba(148, 163, 184, 0.06);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            color: var(--text-color);
+          }
+
+          .mini-feature-item i {
+            color: var(--accent);
+          }
+
+          .demo-credentials-card {
+            border-radius: 16px;
+            padding: 1rem 1.1rem;
+            background: rgba(148, 163, 184, 0.06);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+          }
+
+          .login-form .btn-link {
+            color: var(--text-muted);
+          }
+
+          .login-form .btn-link:hover {
+            color: var(--accent);
+          }
+
+          @media (max-width: 992px) {
+            .login-shell {
+              grid-template-columns: 1fr;
+            }
+          }
+        </style>
+      </head>
+      <body class="login-body">
+        <div class="login-backdrop"></div>
+        <div class="login-orb orb-one"></div>
+        <div class="login-orb orb-two"></div>
+
+        <main class="login-shell">
+          <section class="login-card glass-card">
+            <div class="login-logo"><i class="bi bi-shield-lock-fill"></i></div>
+            <h1 class="login-title">Cloud Security Analytics</h1>
+            <p class="login-subtitle">AI-Powered Threat Response Platform for modern SOC teams</p>
+
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}
+                  <div class="login-alert">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="/login" class="login-form">
+              <div class="login-input-group">
+                <label for="usernameField">Username</label>
+                <div class="login-input-wrap">
+                  <i class="bi bi-person-fill"></i>
+                  <input id="usernameField" type="text" name="username" placeholder="admin" autocomplete="username" required autofocus>
+                </div>
+              </div>
+
+              <div class="login-input-group">
+                <label for="passwordField">Password</label>
+                <div class="login-input-wrap">
+                  <i class="bi bi-lock-fill"></i>
+                  <input id="passwordField" type="password" name="password" placeholder="admin" autocomplete="current-password" required>
+                  <button type="button" class="btn btn-link p-0 border-0" id="togglePassword" aria-label="Toggle password visibility">
+                    <i class="bi bi-eye-slash" id="passwordToggleIcon"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3" style="font-size:0.86rem; color: var(--text-muted);">
+                <label class="form-check-label d-flex align-items-center gap-2">
+                  <input class="form-check-input m-0" type="checkbox" name="remember_me" checked>
+                  Remember Me
+                </label>
+                <a href="#" class="text-decoration-none" style="color: var(--accent);">Forgot Password?</a>
+              </div>
+
+              <button type="submit" class="login-btn">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+              </button>
+            </form>
+
+            <div class="demo-credentials-card mt-4">
+              <div class="section-title" style="margin-bottom:0.5rem;"><i class="bi bi-key-fill"></i> Demo Credentials</div>
+              <div class="d-flex justify-content-between" style="font-size:0.92rem;"><span>Username</span><strong>admin</strong></div>
+              <div class="d-flex justify-content-between" style="font-size:0.92rem;"><span>Password</span><strong>admin</strong></div>
+            </div>
+          </section>
+
+          <aside class="login-aside glass-card">
+            <div class="badge-status mb-3" style="background: rgba(0,229,255,0.12); color: var(--accent);">DEMO MODE</div>
+            <h2 class="mb-3" style="font-weight:700;">Secure visibility for cloud incidents</h2>
+            <p style="color: var(--text-muted); margin-bottom:1.25rem;">
+              Monitor incidents, investigate suspicious activity, generate reports, and keep a clear view of your security posture from a single SOC command center.
+            </p>
+            <div class="mini-feature-list">
+              <div class="mini-feature-item"><i class="bi bi-shield-check"></i> Threat scoring and investigation workflow</div>
+              <div class="mini-feature-item"><i class="bi bi-graph-up-arrow"></i> Executive reporting and analytics</div>
+              <div class="mini-feature-item"><i class="bi bi-lightning-charge"></i> Fast demo-ready experience with fixed incidents</div>
+            </div>
+          </aside>
+        </main>
+
+        <script>
+          document.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            alert('Developer tools are restricted in demo mode.');
+          });
+
+          document.addEventListener('keydown', (event) => {
+            const blocked = event.key === 'F12' || (event.ctrlKey && event.shiftKey && ['I', 'J', 'C'].includes(event.key));
+            if (blocked) {
+              event.preventDefault();
+              alert('Developer tools are restricted in demo mode.');
+            }
+          });
+
+          const passwordField = document.getElementById('passwordField');
+          const togglePassword = document.getElementById('togglePassword');
+          const toggleIcon = document.getElementById('passwordToggleIcon');
+
+          if (togglePassword && passwordField && toggleIcon) {
+            togglePassword.addEventListener('click', () => {
+              const hidden = passwordField.type === 'password';
+              passwordField.type = hidden ? 'text' : 'password';
+              toggleIcon.className = hidden ? 'bi bi-eye' : 'bi bi-eye-slash';
+            });
+          }
+        </script>
+      </body>
+      </html>
+      });
+    }
+  </script>
+
+</body>
+</html>
