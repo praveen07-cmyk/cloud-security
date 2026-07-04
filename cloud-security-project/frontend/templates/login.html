@@ -3,239 +3,198 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
   <title>Login - Cloud Security Analytics</title>
+
+  <script>
+    (function () {
+      try {
+        const storedTheme = localStorage.getItem("cloudsec-theme");
+        const preferred = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", storedTheme || preferred);
+      } catch (error) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 </head>
 <body class="login-body">
+  <div class="login-backdrop"></div>
+  <div class="login-orb orb-one"></div>
+  <div class="login-orb orb-two"></div>
+  <div class="login-orb orb-three"></div>
 
-  <div class="login-card">
-    <div class="login-logo"><i class="bi bi-shield-lock-fill"></i></div>
-    <div class="login-title">Cloud Security Analytics</div>
-    <div class="login-subtitle">AI-Powered Threat Response Platform</div>
+  <main class="login-shell">
+    <section class="login-card glass-card fade-in-up">
+      <div class="login-header-row">
+        <div>
+          <div class="login-logo"><i class="bi bi-shield-lock-fill"></i></div>
+          <h1 class="login-title mt-3">Cloud Security Analytics</h1>
+          <p class="login-subtitle">Enterprise SOC command center for threat visibility and response</p>
+        </div>
+        <button class="login-theme-btn" type="button" id="loginThemeToggle" aria-label="Toggle theme">
+          <i class="bi bi-moon-stars-fill" id="loginThemeIcon"></i>
+        </button>
+      </div>
 
-    {% with messages = get_flashed_messages() %}
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Login - Cloud Security Analytics</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-        <style>
-          .login-shell {
-            width: min(1180px, calc(100% - 2rem));
-            display: grid;
-            grid-template-columns: 1.1fr 0.9fr;
-            gap: 1.25rem;
-            align-items: stretch;
-            position: relative;
-            z-index: 1;
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          {% for message in messages %}
+            <div class="login-alert">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <p class="login-hero-copy">Sign in to review incidents, investigate threats, export reports, and operate the demo SOC without changing the backend workflow.</p>
+
+      <form method="POST" action="{{ url_for('login') }}" class="login-form" id="loginForm">
+        <div class="login-input-group">
+          <label for="usernameField">Username</label>
+          <div class="login-input-wrap">
+            <i class="bi bi-person-fill"></i>
+            <input id="usernameField" type="text" name="username" placeholder="admin" autocomplete="username" required autofocus>
+          </div>
+        </div>
+
+        <div class="login-input-group">
+          <label for="passwordField">Password</label>
+          <div class="login-input-wrap">
+            <i class="bi bi-lock-fill"></i>
+            <input id="passwordField" type="password" name="password" placeholder="admin" autocomplete="current-password" required>
+            <button type="button" class="btn btn-link p-0 border-0 text-decoration-none" id="togglePassword" aria-label="Toggle password visibility">
+              <i class="bi bi-eye-slash" id="passwordToggleIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-utility-row">
+          <label class="form-check-label d-flex align-items-center gap-2">
+            <input class="form-check-input m-0" type="checkbox" name="remember_me" checked>
+            Remember Me
+          </label>
+          <a href="#" class="text-decoration-none" style="color: var(--accent);">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="login-btn">
+          <i class="bi bi-shield-lock me-1"></i> Admin Login
+        </button>
+
+        <div class="login-separator">Or continue with</div>
+
+        <div class="login-secondary-actions">
+          <button type="button" class="social-login-btn google"><i class="bi bi-google"></i> Google</button>
+          <button type="button" class="social-login-btn github"><i class="bi bi-github"></i> GitHub</button>
+          <button type="button" class="social-login-btn" id="demoModeBtn"><i class="bi bi-lightning-charge-fill"></i> Demo Mode</button>
+        </div>
+
+        <div class="demo-credentials-card mt-1">
+          <div class="section-title mb-2"><i class="bi bi-key-fill"></i> Demo Credentials</div>
+          <div class="d-flex justify-content-between" style="font-size:0.92rem;"><span>Username</span><strong>admin</strong></div>
+          <div class="d-flex justify-content-between" style="font-size:0.92rem;"><span>Password</span><strong>admin</strong></div>
+        </div>
+      </form>
+    </section>
+
+    <aside class="login-aside glass-card fade-in-up">
+      <div class="badge-status mb-3" style="background: rgba(0,229,255,0.12); color: var(--accent); border-color: rgba(0,229,255,0.18);">DEMO MODE</div>
+      <h2>Premium security operations in one view</h2>
+      <p>
+        Explore a polished SOC interface with incident triage, threat intelligence, analytics, reports, and investigation workflows designed to feel like commercial cybersecurity software.
+      </p>
+
+      <div class="login-visual-grid">
+        <div class="login-visual-card">
+          <strong><i class="bi bi-shield-check me-2"></i>Threat Overview</strong>
+          <span>Risk scoring, severity badges, and live incident visibility.</span>
+        </div>
+        <div class="login-visual-card">
+          <strong><i class="bi bi-bar-chart-line-fill me-2"></i>Executive Analytics</strong>
+          <span>Clear operational summaries with responsive charts and summaries.</span>
+        </div>
+        <div class="login-visual-card">
+          <strong><i class="bi bi-file-earmark-text-fill me-2"></i>Reports and Export</strong>
+          <span>PDF and CSV workflows that fit a real enterprise review cycle.</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    (function () {
+      const THEME_STORAGE_KEY = "cloudsec-theme";
+      const themeToggle = document.getElementById("loginThemeToggle");
+      const themeIcon = document.getElementById("loginThemeIcon");
+      const passwordField = document.getElementById("passwordField");
+      const togglePassword = document.getElementById("togglePassword");
+      const toggleIcon = document.getElementById("passwordToggleIcon");
+      const demoModeBtn = document.getElementById("demoModeBtn");
+      const loginForm = document.getElementById("loginForm");
+      const usernameField = document.getElementById("usernameField");
+
+      function setTheme(theme, persist) {
+        const nextTheme = theme === "light" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", nextTheme);
+        if (themeIcon) {
+          themeIcon.className = nextTheme === "dark" ? "bi bi-moon-stars-fill" : "bi bi-sun-fill";
+        }
+        if (persist) {
+          try {
+            localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+          } catch (error) {
+            // Ignore storage errors.
           }
+        }
+      }
 
-          .login-backdrop {
-            position: fixed;
-            inset: 0;
-            background:
-              radial-gradient(circle at 15% 20%, rgba(0, 229, 255, 0.12), transparent 25%),
-              radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.18), transparent 28%),
-              linear-gradient(180deg, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0.98));
-            pointer-events: none;
-          }
+      setTheme(document.documentElement.getAttribute("data-theme") || "dark", false);
 
-          .login-orb {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(50px);
-            opacity: 0.55;
-            pointer-events: none;
-          }
+      if (themeToggle) {
+        themeToggle.addEventListener("click", () => {
+          const current = document.documentElement.getAttribute("data-theme") || "dark";
+          document.body.classList.add("theme-transition");
+          setTheme(current === "dark" ? "light" : "dark", true);
+          window.setTimeout(() => document.body.classList.remove("theme-transition"), 280);
+        });
+      }
 
-          .orb-one {
-            width: 180px;
-            height: 180px;
-            background: rgba(0, 229, 255, 0.22);
-            top: 8%;
-            left: 12%;
-          }
+      if (togglePassword && passwordField && toggleIcon) {
+        togglePassword.addEventListener("click", () => {
+          const hidden = passwordField.type === "password";
+          passwordField.type = hidden ? "text" : "password";
+          toggleIcon.className = hidden ? "bi bi-eye" : "bi bi-eye-slash";
+        });
+      }
 
-          .orb-two {
-            width: 240px;
-            height: 240px;
-            background: rgba(37, 99, 235, 0.22);
-            bottom: 8%;
-            right: 10%;
-          }
+      if (demoModeBtn && loginForm && usernameField && passwordField) {
+        demoModeBtn.addEventListener("click", () => {
+          usernameField.value = "admin";
+          passwordField.value = "admin";
+          loginForm.requestSubmit();
+        });
+      }
 
-          .login-card, .login-aside {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            max-width: none;
-          }
-
-          .login-aside {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(148, 163, 184, 0.15);
-            border-radius: 20px;
-            padding: 2rem;
-            backdrop-filter: blur(14px);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-          }
-
-          .mini-feature-list {
-            display: grid;
-            gap: 0.8rem;
-          }
-
-          .mini-feature-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.9rem 1rem;
-            border-radius: 14px;
-            background: rgba(148, 163, 184, 0.06);
-            border: 1px solid rgba(148, 163, 184, 0.12);
-            color: var(--text-color);
-          }
-
-          .mini-feature-item i {
-            color: var(--accent);
-          }
-
-          .demo-credentials-card {
-            border-radius: 16px;
-            padding: 1rem 1.1rem;
-            background: rgba(148, 163, 184, 0.06);
-            border: 1px solid rgba(148, 163, 184, 0.12);
-          }
-
-          .login-form .btn-link {
-            color: var(--text-muted);
-          }
-
-          .login-form .btn-link:hover {
-            color: var(--accent);
-          }
-
-          @media (max-width: 992px) {
-            .login-shell {
-              grid-template-columns: 1fr;
-            }
-          }
-        </style>
-      </head>
-      <body class="login-body">
-        <div class="login-backdrop"></div>
-        <div class="login-orb orb-one"></div>
-        <div class="login-orb orb-two"></div>
-
-        <main class="login-shell">
-          <section class="login-card glass-card">
-            <div class="login-logo"><i class="bi bi-shield-lock-fill"></i></div>
-            <h1 class="login-title">Cloud Security Analytics</h1>
-            <p class="login-subtitle">AI-Powered Threat Response Platform for modern SOC teams</p>
-
-            {% with messages = get_flashed_messages() %}
-              {% if messages %}
-                {% for message in messages %}
-                  <div class="login-alert">{{ message }}</div>
-                {% endfor %}
-              {% endif %}
-            {% endwith %}
-
-            <form method="POST" action="/login" class="login-form">
-              <div class="login-input-group">
-                <label for="usernameField">Username</label>
-                <div class="login-input-wrap">
-                  <i class="bi bi-person-fill"></i>
-                  <input id="usernameField" type="text" name="username" placeholder="admin" autocomplete="username" required autofocus>
-                </div>
-              </div>
-
-              <div class="login-input-group">
-                <label for="passwordField">Password</label>
-                <div class="login-input-wrap">
-                  <i class="bi bi-lock-fill"></i>
-                  <input id="passwordField" type="password" name="password" placeholder="admin" autocomplete="current-password" required>
-                  <button type="button" class="btn btn-link p-0 border-0" id="togglePassword" aria-label="Toggle password visibility">
-                    <i class="bi bi-eye-slash" id="passwordToggleIcon"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3" style="font-size:0.86rem; color: var(--text-muted);">
-                <label class="form-check-label d-flex align-items-center gap-2">
-                  <input class="form-check-input m-0" type="checkbox" name="remember_me" checked>
-                  Remember Me
-                </label>
-                <a href="#" class="text-decoration-none" style="color: var(--accent);">Forgot Password?</a>
-              </div>
-
-              <button type="submit" class="login-btn">
-                <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
-              </button>
-            </form>
-
-            <div class="demo-credentials-card mt-4">
-              <div class="section-title" style="margin-bottom:0.5rem;"><i class="bi bi-key-fill"></i> Demo Credentials</div>
-              <div class="d-flex justify-content-between" style="font-size:0.92rem;"><span>Username</span><strong>admin</strong></div>
-              <div class="d-flex justify-content-between" style="font-size:0.92rem;"><span>Password</span><strong>admin</strong></div>
-            </div>
-          </section>
-
-          <aside class="login-aside glass-card">
-            <div class="badge-status mb-3" style="background: rgba(0,229,255,0.12); color: var(--accent);">DEMO MODE</div>
-            <h2 class="mb-3" style="font-weight:700;">Secure visibility for cloud incidents</h2>
-            <p style="color: var(--text-muted); margin-bottom:1.25rem;">
-              Monitor incidents, investigate suspicious activity, generate reports, and keep a clear view of your security posture from a single SOC command center.
-            </p>
-            <div class="mini-feature-list">
-              <div class="mini-feature-item"><i class="bi bi-shield-check"></i> Threat scoring and investigation workflow</div>
-              <div class="mini-feature-item"><i class="bi bi-graph-up-arrow"></i> Executive reporting and analytics</div>
-              <div class="mini-feature-item"><i class="bi bi-lightning-charge"></i> Fast demo-ready experience with fixed incidents</div>
-            </div>
-          </aside>
-        </main>
-
-        <script>
-          document.addEventListener('contextmenu', (event) => {
-            event.preventDefault();
-            alert('Developer tools are restricted in demo mode.');
-          });
-
-          document.addEventListener('keydown', (event) => {
-            const blocked = event.key === 'F12' || (event.ctrlKey && event.shiftKey && ['I', 'J', 'C'].includes(event.key));
-            if (blocked) {
-              event.preventDefault();
-              alert('Developer tools are restricted in demo mode.');
-            }
-          });
-
-          const passwordField = document.getElementById('passwordField');
-          const togglePassword = document.getElementById('togglePassword');
-          const toggleIcon = document.getElementById('passwordToggleIcon');
-
-          if (togglePassword && passwordField && toggleIcon) {
-            togglePassword.addEventListener('click', () => {
-              const hidden = passwordField.type === 'password';
-              passwordField.type = hidden ? 'text' : 'password';
-              toggleIcon.className = hidden ? 'bi bi-eye' : 'bi bi-eye-slash';
-            });
-          }
-        </script>
-      </body>
-      </html>
+      document.querySelectorAll(".social-login-btn").forEach((button) => {
+        if (button.id === "demoModeBtn") {
+          return;
+        }
+        button.addEventListener("click", () => {
+          const provider = button.textContent.trim();
+          const helper = document.createElement("div");
+          helper.className = "login-alert";
+          helper.textContent = `${provider} sign-in is available in the enterprise UI layer only.`;
+          loginForm.insertBefore(helper, loginForm.querySelector(".login-separator"));
+          window.setTimeout(() => helper.remove(), 2200);
+        });
       });
-    }
+    })();
   </script>
-
 </body>
 </html>

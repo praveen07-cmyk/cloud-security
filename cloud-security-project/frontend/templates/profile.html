@@ -10,9 +10,9 @@
     <div class="glass-card text-center h-100">
       <div class="profile-avatar mx-auto mb-2" style="width:72px; height:72px; font-size:1.7rem;">{{ (username or session.get('login_name') or 'A')[0]|upper }}</div>
       <div style="font-weight:700; font-size:1.1rem;">{{ username or session.get('login_name') or 'admin' }}</div>
-      <div style="color: var(--text-muted); font-size:0.85rem;">{{ session.get('role') or 'SOC Analyst' }}</div>
+      <div style="color: var(--text-muted); font-size:0.85rem;">{{ role or session.get('role') or 'SOC Analyst' }}</div>
       <hr style="border-color: var(--border-color);">
-      <div class="info-row"><span class="label">Role</span><span class="value">{{ session.get('role') or 'SOC Analyst' }}</span></div>
+      <div class="info-row"><span class="label">Role</span><span class="value">{{ role or session.get('role') or 'SOC Analyst' }}</span></div>
       <div class="info-row"><span class="label">Access Level</span><span class="value">Full</span></div>
       <div class="info-row"><span class="label">Status</span><span class="value text-success">Online</span></div>
       <div class="info-row"><span class="label">Login Name</span><span class="value">{{ session.get('login_name') or username or 'admin' }}</span></div>

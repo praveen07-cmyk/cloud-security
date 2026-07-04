@@ -6,12 +6,75 @@
 ================================================ */
 
 // ---------- Theme Toggle ----------
-(function initTheme() {
-  const savedTheme = "dark"; // in-memory only, per project rules (no localStorage needed)
-  document.body.setAttribute("data-theme", savedTheme);
-})();
+const THEME_STORAGE_KEY = "cloudsec-theme";
+const SIDEBAR_STORAGE_KEY = "cloudsec-sidebar-collapsed";
+
+function readStoredTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+function readStoredSidebarState() {
+  try {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+function applyTheme(theme, persist = true) {
+  const nextTheme = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", nextTheme);
+  document.body.setAttribute("data-theme", nextTheme);
+
+  const themeIcon = document.getElementById("themeIcon");
+  if (themeIcon) {
+    themeIcon.className = nextTheme === "dark" ? "bi bi-moon-stars-fill" : "bi bi-sun-fill";
+  }
+
+  const settingsSwitch = document.getElementById("settingsThemeSwitch");
+  if (settingsSwitch) {
+    settingsSwitch.checked = nextTheme === "dark";
+  }
+
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch (error) {
+      // Local storage may be unavailable in restricted browser contexts.
+    }
+  }
+}
+
+function applySidebarState(collapsed, persist = true) {
+  const shouldCollapse = Boolean(collapsed);
+  document.body.classList.toggle("sidebar-collapsed", shouldCollapse);
+
+  const sidebarButton = document.getElementById("sidebarCollapseBtn");
+  if (sidebarButton) {
+    sidebarButton.setAttribute("aria-expanded", String(!shouldCollapse));
+    const icon = sidebarButton.querySelector("i");
+    if (icon) {
+      icon.className = shouldCollapse ? "bi bi-layout-sidebar-inset-reverse" : "bi bi-layout-sidebar-inset";
+    }
+  }
+
+  if (persist) {
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, shouldCollapse ? "1" : "0");
+    } catch (error) {
+      // Ignore storage failures in demo environments.
+    }
+  }
+}
 
 document.addEventListener("DOMContentLoaded", function () {
+  applyTheme(readStoredTheme() || document.documentElement.getAttribute("data-theme") || "dark", false);
+  applySidebarState(readStoredSidebarState() === "1", false);
+
   const deterrentMessage = "Developer tools and context menus are restricted in demo mode.";
 
   document.addEventListener("contextmenu", (event) => {
@@ -34,15 +97,27 @@ document.addEventListener("DOMContentLoaded", function () {
   function toggleTheme() {
     const current = document.body.getAttribute("data-theme");
     const next = current === "dark" ? "light" : "dark";
-    document.body.setAttribute("data-theme", next);
-    if (themeIcon) {
-      themeIcon.className = next === "dark" ? "bi bi-moon-stars-fill" : "bi bi-sun-fill";
-    }
-    if (settingsSwitch) settingsSwitch.checked = next === "dark";
+    document.body.classList.add("theme-transition");
+    applyTheme(next);
+    window.setTimeout(() => document.body.classList.remove("theme-transition"), 280);
   }
 
   if (themeBtn) themeBtn.addEventListener("click", toggleTheme);
-  if (settingsSwitch) settingsSwitch.addEventListener("change", toggleTheme);
+  if (settingsSwitch) {
+    settingsSwitch.addEventListener("change", () => {
+      document.body.classList.add("theme-transition");
+      applyTheme(settingsSwitch.checked ? "dark" : "light");
+      window.setTimeout(() => document.body.classList.remove("theme-transition"), 280);
+    });
+  }
+
+  const sidebarCollapseBtn = document.getElementById("sidebarCollapseBtn");
+  if (sidebarCollapseBtn) {
+    sidebarCollapseBtn.addEventListener("click", () => {
+      const collapsed = !document.body.classList.contains("sidebar-collapsed");
+      applySidebarState(collapsed);
+    });
+  }
 
   // Mobile sidebar toggle
   const mobileToggle = document.getElementById("mobileSidebarToggle");
@@ -86,6 +161,45 @@ document.addEventListener("DOMContentLoaded", function () {
         row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
       });
     });
+  }
+
+  const dashboardConfig = document.getElementById("dashboardConfig");
+  if (dashboardConfig) {
+    const attackDistribution = JSON.parse(dashboardConfig.dataset.attackDistribution || "{}");
+    const trafficPattern = JSON.parse(dashboardConfig.dataset.trafficPattern || "[]");
+    const securityScore = parseInt(dashboardConfig.dataset.securityScore || "0", 10);
+
+    const loadDemoBtn = document.getElementById("loadDemoBtn");
+    if (loadDemoBtn) {
+      loadDemoBtn.addEventListener("click", async () => {
+        try {
+          const response = await fetch(dashboardConfig.dataset.loadDemoUrl || "/load-demo-threats");
+          const data = await response.json();
+          const body = document.getElementById("alertsTableBody");
+          if (body && Array.isArray(data.incidents)) {
+            body.innerHTML = data.incidents.map((inc) => `
+              <tr>
+                <td>${inc.time}</td>
+                <td><a class="ip-link text-decoration-none" href="/investigate/${inc.source_ip}">${inc.source_ip}</a></td>
+                <td>${inc.destination_ip}</td>
+                <td>${inc.attack_type}</td>
+                <td><span class="badge-status badge-severity-${inc.severity}">${inc.severity}</span></td>
+                <td>${inc.confidence}%</td>
+                <td>${inc.assigned_to}</td>
+                <td>${inc.status}</td>
+                <td><a href="/investigate/${inc.source_ip}" class="btn btn-sm btn-outline-glass">Investigate</a></td>
+              </tr>
+            `).join('');
+            showToast('Demo threats loaded successfully.', 'success');
+          }
+        } catch (error) {
+          showToast('Unable to load demo threats right now.', 'danger');
+        }
+      });
+    }
+
+    initDashboardCharts(attackDistribution, trafficPattern, securityScore);
+    initThreatHeatmap();
   }
 
   // SocketIO connection (used to push fixed demo incidents on connect)

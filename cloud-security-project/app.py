@@ -332,6 +332,7 @@ def dashboard():
     return render_template(
         "dashboard.html",
         username=get_logged_in_username(),
+        role=get_logged_in_role(),
         incidents=incidents,
         security_score=security_score,
         threat_score=threat_score,
@@ -389,6 +390,7 @@ def investigate(ip):
     return render_template(
         "investigate.html",
         username=get_logged_in_username(),
+        role=get_logged_in_role(),
         incident=incident,
         risk_data=risk_data,
         reputation_data=reputation_data,
@@ -423,6 +425,7 @@ def analytics():
     return render_template(
         "analytics.html",
         username=get_logged_in_username(),
+        role=get_logged_in_role(),
         attack_distribution=attack_distribution,
         severity_distribution=severity_distribution,
         status_distribution=status_distribution,
@@ -438,6 +441,7 @@ def reports():
     return render_template(
         "reports.html",
         username=get_logged_in_username(),
+        role=get_logged_in_role(),
         incidents=incidents,
     )
 
@@ -469,7 +473,7 @@ def download_csv_report():
 @app.route("/settings")
 @login_required
 def settings():
-    return render_template("settings.html", username=get_logged_in_username())
+    return render_template("settings.html", username=get_logged_in_username(), role=get_logged_in_role())
 
 
 @app.route("/profile")
@@ -478,6 +482,7 @@ def profile():
     return render_template(
         "profile.html",
         username=get_logged_in_username(),
+        role=get_logged_in_role(),
         demo_users=DEMO_USERS,
     )
 
