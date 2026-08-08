@@ -82,6 +82,10 @@ from database.db import (
     get_user_by_username,
     init_db,
     log_audit_event,
+    record_login_history,
+    get_login_history,
+    get_user_login_history,
+    get_security_activity_summary,
     reset_user_password,
     restore_database_from_file,
     role_can_access,
@@ -638,17 +642,20 @@ def login():
     remember_me = request.form.get("remember_me") == "on"
 
     if is_ip_blocked(client_ip()):
+        record_login_history(username=username or "unknown", auth_method="PASSWORD", status="BLOCKED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="IP temporarily blocked")
         audit_event("failed_login", "authentication", "IP temporarily blocked", "blocked", username=username or "unknown")
         flash("Too many failed login attempts. Please wait before trying again.")
         return redirect(url_for("login_page"))
 
     if is_account_locked(username):
+        record_login_history(username=username or "unknown", auth_method="PASSWORD", status="BLOCKED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Account temporarily locked")
         audit_event("failed_login", "authentication", "Account temporarily locked", "blocked", username=username or "unknown")
         flash("Too many failed login attempts. Please wait before trying again.")
         return redirect(url_for("login_page"))
 
     if not is_valid_username(username) or not is_valid_password(password):
         record_failed_login(username)
+        record_login_history(username=username or "unknown", auth_method="PASSWORD", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Invalid login format")
         audit_event("failed_login", "authentication", "Invalid login format", "failed", username=username or "unknown")
         flash("Invalid username or password.")
         return redirect(url_for("login_page"))
@@ -657,6 +664,7 @@ def login():
     if user:
         user_object = User.from_row(user)
         if user_object is None:
+            record_login_history(username=user["username"], auth_method="PASSWORD", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Invalid user object")
             flash("Login failed. Please try again.")
             return redirect(url_for("login_page"))
 
@@ -671,6 +679,15 @@ def login():
         session["last_activity"] = utc_now().timestamp()
         clear_failed_login_state(user["username"])
         audit_event("login", "authentication", "User logged in", username=user["username"])
+        record_login_history(
+            user_id=user["id"],
+            email=user.get("email"),
+            username=user["username"],
+            auth_method="PASSWORD",
+            status="SUCCESS",
+            ip_address=client_ip(),
+            user_agent_str=user_agent(),
+        )
         # Phase 1: Enhanced MFA Check Framework
         if app.config.get("ENFORCE_MFA", False):
             flash("MFA is enforced for this environment. Please configure your TOTP token.", "warning")
@@ -681,6 +698,7 @@ def login():
         return redirect(url_for("select_mode"))
 
     record_failed_login(username)
+    record_login_history(username=username or "unknown", auth_method="PASSWORD", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Invalid credentials")
     audit_event("failed_login", "authentication", "Invalid credentials", "failed", username=username or "unknown")
     flash("Invalid username or password.")
     return redirect(url_for("login_page"))
@@ -709,18 +727,21 @@ def google_login():
 def google_callback():
     error_param = request.args.get("error")
     if error_param:
+        record_login_history(auth_method="GOOGLE", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason=f"Google OAuth error: {error_param}")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail=f"Google OAuth error: {error_param}", status="failed", username="anonymous")
         flash("Google authentication was cancelled or encountered an error.")
         return redirect(url_for("login_page"))
 
     state_param = request.args.get("state")
     if not validate_state_token("google", state_param):
+        record_login_history(auth_method="GOOGLE", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Google OAuth state mismatch")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="Google OAuth state mismatch (Invalid CSRF)", status="failed", username="anonymous")
         flash("Invalid authentication state token. Request rejected for security.")
         return redirect(url_for("login_page"))
 
     code = request.args.get("code")
     if not code:
+        record_login_history(auth_method="GOOGLE", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Missing code parameter")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="Google OAuth missing code parameter", status="failed", username="anonymous")
         flash("Authorization code missing from Google response.")
         return redirect(url_for("login_page"))
@@ -729,6 +750,7 @@ def google_callback():
         profile = process_google_callback(code)
     except Exception as exc:
         log_exception_context(error_logger, "Error processing Google callback", exc)
+        record_login_history(auth_method="GOOGLE", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Token exchange failed")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="Google callback token exchange failed", status="failed", username="anonymous")
         flash("Failed to complete Google authentication. Please try again.")
         return redirect(url_for("login_page"))
@@ -744,11 +766,13 @@ def google_callback():
     )
 
     if status == "ACCOUNT_LINK_REQUIRED":
+        record_login_history(email=profile.get("email"), auth_method="GOOGLE", provider_user_id=profile.get("provider_user_id"), status="BLOCKED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Account link required")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="Account link required for Google login", status="blocked", username=profile.get("email") or "unknown")
         flash("An account with this email address already exists. Please log in with your password first to link your Google account.")
         return redirect(url_for("login_page"))
 
     if not user_dict:
+        record_login_history(email=profile.get("email"), auth_method="GOOGLE", provider_user_id=profile.get("provider_user_id"), status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="User object creation failed")
         flash("Failed to authenticate user via Google.")
         return redirect(url_for("login_page"))
 
@@ -768,6 +792,17 @@ def google_callback():
     audit_event("GOOGLE_LOGIN_SUCCESS", "authentication", detail="Google identity verified", username=user_dict["username"])
     if status == "USER_CREATED":
         audit_event("ACCOUNT_LINKED", "authentication", detail="New Google OAuth identity linked", username=user_dict["username"])
+
+    record_login_history(
+        user_id=user_dict["id"],
+        email=user_dict.get("email"),
+        username=user_dict["username"],
+        auth_method="GOOGLE",
+        provider_user_id=profile.get("provider_user_id"),
+        status="SUCCESS",
+        ip_address=client_ip(),
+        user_agent_str=user_agent(),
+    )
 
     return redirect(url_for("select_mode"))
 
@@ -792,18 +827,21 @@ def github_login():
 def github_callback():
     error_param = request.args.get("error")
     if error_param:
+        record_login_history(auth_method="GITHUB", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason=f"GitHub OAuth error: {error_param}")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail=f"GitHub OAuth error: {error_param}", status="failed", username="anonymous")
         flash("GitHub authentication was cancelled or encountered an error.")
         return redirect(url_for("login_page"))
 
     state_param = request.args.get("state")
     if not validate_state_token("github", state_param):
+        record_login_history(auth_method="GITHUB", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="GitHub OAuth state mismatch")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="GitHub OAuth state mismatch (Invalid CSRF)", status="failed", username="anonymous")
         flash("Invalid authentication state token. Request rejected for security.")
         return redirect(url_for("login_page"))
 
     code = request.args.get("code")
     if not code:
+        record_login_history(auth_method="GITHUB", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Missing code parameter")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="GitHub OAuth missing code parameter", status="failed", username="anonymous")
         flash("Authorization code missing from GitHub response.")
         return redirect(url_for("login_page"))
@@ -812,6 +850,7 @@ def github_callback():
         profile = process_github_callback(code)
     except Exception as exc:
         log_exception_context(error_logger, "Error processing GitHub callback", exc)
+        record_login_history(auth_method="GITHUB", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Token exchange failed")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="GitHub callback token exchange failed", status="failed", username="anonymous")
         flash("Failed to complete GitHub authentication. Please try again.")
         return redirect(url_for("login_page"))
@@ -827,11 +866,13 @@ def github_callback():
     )
 
     if status == "ACCOUNT_LINK_REQUIRED":
+        record_login_history(email=profile.get("email"), auth_method="GITHUB", provider_user_id=profile.get("provider_user_id"), status="BLOCKED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Account link required")
         audit_event("SOCIAL_LOGIN_FAILED", "authentication", detail="Account link required for GitHub login", status="blocked", username=profile.get("email") or "unknown")
         flash("An account with this email address already exists. Please log in with your password first to link your GitHub account.")
         return redirect(url_for("login_page"))
 
     if not user_dict:
+        record_login_history(email=profile.get("email"), auth_method="GITHUB", provider_user_id=profile.get("provider_user_id"), status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="User object creation failed")
         flash("Failed to authenticate user via GitHub.")
         return redirect(url_for("login_page"))
 
@@ -851,6 +892,17 @@ def github_callback():
     audit_event("GITHUB_LOGIN_SUCCESS", "authentication", detail="GitHub identity verified", username=user_dict["username"])
     if status == "USER_CREATED":
         audit_event("ACCOUNT_LINKED", "authentication", detail="New GitHub OAuth identity linked", username=user_dict["username"])
+
+    record_login_history(
+        user_id=user_dict["id"],
+        email=user_dict.get("email"),
+        username=user_dict["username"],
+        auth_method="GITHUB",
+        provider_user_id=profile.get("provider_user_id"),
+        status="SUCCESS",
+        ip_address=client_ip(),
+        user_agent_str=user_agent(),
+    )
 
     return redirect(url_for("select_mode"))
 
@@ -899,10 +951,12 @@ def firebase_login():
     provider = data.get("provider", "firebase")
 
     if not id_token:
+        record_login_history(auth_method="FIREBASE", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Missing Firebase ID token")
         audit_event("failed_login", "authentication", "Missing Firebase ID token", "failed", username="firebase")
         return api_response(False, "Missing Firebase ID token.", error="missing_token", status_code=400)
 
     if not initialize_firebase_admin():
+        record_login_history(auth_method="FIREBASE", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Firebase Admin not configured")
         audit_event("failed_login", "authentication", "Firebase Admin is not configured", "failed", username="firebase")
         return api_response(False, "Firebase authentication is not configured.", error="firebase_unavailable", status_code=503)
 
@@ -910,6 +964,7 @@ def firebase_login():
         decoded_token = firebase_auth.verify_id_token(id_token)
     except Exception as exc:
         security_logger.warning("Firebase token verification failed: %s", exc)
+        record_login_history(auth_method="FIREBASE", status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Invalid Firebase token")
         audit_event("failed_login", "authentication", "Invalid Firebase token", "failed", username="firebase")
         return api_response(False, "Invalid Firebase token.", error="invalid_token", status_code=401)
 
@@ -920,11 +975,13 @@ def firebase_login():
     provider = firebase_claims.get("sign_in_provider") or provider
 
     if not firebase_uid:
+        record_login_history(auth_method=provider.upper(), status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Missing Firebase UID")
         return api_response(False, "Firebase token did not include a UID.", error="missing_uid", status_code=400)
 
     user = get_or_create_firebase_user(firebase_uid, email, full_name, provider)
     user_object = User.from_row(user)
     if user_object is None:
+        record_login_history(email=email, auth_method=provider.upper(), provider_user_id=firebase_uid, status="FAILED", ip_address=client_ip(), user_agent_str=user_agent(), failure_reason="Session creation failed")
         return api_response(False, "Unable to create Flask session.", error="session_failed", status_code=500)
 
     logout_user()
@@ -936,6 +993,16 @@ def firebase_login():
     session["login_name"] = user["username"]
     session["auth_provider"] = provider
     audit_event("firebase_login", "authentication", f"Firebase login via {provider}", username=user["username"])
+    record_login_history(
+        user_id=user["id"],
+        email=user.get("email"),
+        username=user["username"],
+        auth_method=provider.upper(),
+        provider_user_id=firebase_uid,
+        status="SUCCESS",
+        ip_address=client_ip(),
+        user_agent_str=user_agent(),
+    )
 
     return jsonify({"success": True, "message": "Firebase login successful.", "data": {"redirect": url_for("dashboard")}, "error": None, "redirect": url_for("dashboard")})
 
@@ -1434,6 +1501,80 @@ def worker_start():
 def worker_stop():
     audit_event("worker_stopped", "worker", "Background worker stopped")
     return api_response(True, "Worker stopped.", BackgroundWorker.stop())
+
+
+# ------------------------------------------------
+# Login History & Security Activity Endpoints
+# ------------------------------------------------
+@app.route("/api/auth/login-history", methods=["GET"])
+@login_required
+def api_get_login_history():
+    user_id_param = request.args.get("user_id", type=int)
+    limit = min(request.args.get("limit", 50, type=int), 200)
+    offset = request.args.get("offset", 0, type=int)
+    status = request.args.get("status")
+    method = request.args.get("method")
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+    search = request.args.get("search")
+
+    is_elevated = (current_user.role or "").lower() in ("administrator", "admin", "analyst", "security analyst", "cloud administrator", "cloud_admin")
+
+    if not is_elevated:
+        if user_id_param and user_id_param != current_user.id:
+            return api_response(False, "Access denied. You do not have permission to view another user's login history.", error="forbidden", status_code=403)
+        user_id = current_user.id
+    else:
+        user_id = user_id_param
+
+    data = get_login_history(
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+        status=status,
+        method=method,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
+    )
+    return api_response(True, "Login history retrieved.", data)
+
+
+@app.route("/api/auth/login-history/recent", methods=["GET"])
+@login_required
+def api_get_recent_login_history():
+    is_elevated = (current_user.role or "").lower() in ("administrator", "admin", "analyst", "security analyst", "cloud administrator", "cloud_admin")
+    user_id = None if is_elevated else current_user.id
+    data = get_login_history(user_id=user_id, limit=10, offset=0)
+    return api_response(True, "Recent login history retrieved.", data)
+
+
+@app.route("/api/auth/login-history/<int:target_user_id>", methods=["GET"])
+@login_required
+def api_get_user_login_history(target_user_id):
+    is_elevated = (current_user.role or "").lower() in ("administrator", "admin", "analyst", "security analyst", "cloud administrator", "cloud_admin")
+    if not is_elevated and target_user_id != current_user.id:
+        return api_response(False, "Access denied. You do not have permission to view this user's login history.", error="forbidden", status_code=403)
+
+    limit = min(request.args.get("limit", 50, type=int), 200)
+    offset = request.args.get("offset", 0, type=int)
+    data = get_user_login_history(user_id=target_user_id, limit=limit, offset=offset)
+    return api_response(True, f"Login history for user {target_user_id} retrieved.", data)
+
+
+@app.route("/api/auth/security-summary", methods=["GET"])
+@login_required
+def api_get_security_summary():
+    user_id_param = request.args.get("user_id", type=int)
+    is_elevated = (current_user.role or "").lower() in ("administrator", "admin", "analyst", "security analyst", "cloud administrator", "cloud_admin")
+
+    if not is_elevated:
+        target_user = current_user.id
+    else:
+        target_user = user_id_param
+
+    summary = get_security_activity_summary(user_id=target_user)
+    return api_response(True, "Security activity summary retrieved.", summary)
 
 
 @app.route("/api/cais/score", methods=["GET", "POST"])

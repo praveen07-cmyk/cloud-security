@@ -12,7 +12,7 @@ friendly.
 
 import os
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -173,7 +173,72 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
+class LoginHistory(Base):
+    __tablename__ = "login_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    email = Column(String(255), nullable=True, index=True)
+    username = Column(String(100), nullable=True, index=True)
+    authentication_method = Column(String(50), nullable=False, default="PASSWORD")
+    provider_user_id = Column(String(255), nullable=True)
+    login_timestamp = Column(DateTime, default=utc_now, nullable=False, index=True)
+    login_status = Column(String(20), nullable=False, default="SUCCESS")
+    ip_address = Column(String(100), nullable=True, index=True)
+    user_agent = Column(String(500), nullable=True)
+    browser = Column(String(100), default="Unknown")
+    browser_version = Column(String(50), nullable=True)
+    operating_system = Column(String(100), default="Unknown")
+    device_type = Column(String(50), default="Unknown")
+    device_name = Column(String(100), nullable=True)
+    country = Column(String(100), default="Unknown")
+    region = Column(String(100), default="Unknown")
+    city = Column(String(100), default="Unknown")
+    session_id_hash = Column(String(64), nullable=True)
+    failure_reason = Column(String(255), nullable=True)
+    risk_score = Column(Integer, default=0)
+    risk_level = Column(String(20), default="LOW")
+    risk_signals = Column(Text, default="[]")
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    def to_dict(self):
+        signals = []
+        if self.risk_signals:
+            try:
+                signals = json.loads(self.risk_signals) if isinstance(self.risk_signals, str) else self.risk_signals
+            except Exception:
+                signals = [s.strip() for s in str(self.risk_signals).split(",") if s.strip()]
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "email": self.email,
+            "username": self.username,
+            "authentication_method": self.authentication_method,
+            "provider_user_id": self.provider_user_id,
+            "login_timestamp": self.login_timestamp.isoformat() if self.login_timestamp else None,
+            "login_status": self.login_status,
+            "ip_address": self.ip_address,
+            "user_agent": self.user_agent,
+            "browser": self.browser,
+            "browser_version": self.browser_version,
+            "operating_system": self.operating_system,
+            "device_type": self.device_type,
+            "device_name": self.device_name,
+            "country": self.country,
+            "region": self.region,
+            "city": self.city,
+            "location_label": "Approximate IP-based location",
+            "session_id_hash": self.session_id_hash,
+            "failure_reason": self.failure_reason,
+            "risk_score": self.risk_score,
+            "risk_level": self.risk_level,
+            "risk_signals": signals,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Setting(Base):
+
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -1274,3 +1339,342 @@ def get_dashboard_stats():
 # Backwards-compatible name used by earlier app code.
 def load_incidents():
     return get_all_incidents()
+
+
+def evaluate_user_login_risk(user_id, ip_address, browser, operating_system, device_type, country, email=None):
+    """
+    Evaluates login risk signals based on historical patterns:
+    - NEW_IP: IP address not seen in user's previous successful logins
+    - NEW_DEVICE: (device_type, OS) combination not seen previously
+    - NEW_BROWSER: Browser not seen previously
+    - NEW_COUNTRY: Country not seen previously
+    - REPEATED_FAILED_LOGIN: >= 3 failed logins from user/IP in last 15 minutes
+    - RAPID_LOGIN_ATTEMPTS: Attempt within 5s of previous login from same IP
+    - MULTIPLE_IPS: User logged in from >= 2 distinct IPs in last 1 hour
+    - SUSPICIOUS_LOGIN_PATTERN: Severe combination of signals
+    """
+    session = _get_session()
+    signals = []
+    try:
+        now = utc_now()
+        fifteen_mins_ago = now - timedelta(minutes=15)
+        one_hour_ago = now - timedelta(hours=1)
+        five_secs_ago = now - timedelta(seconds=5)
+
+        query = session.query(LoginHistory)
+        if user_id:
+            user_history = query.filter(LoginHistory.user_id == user_id, LoginHistory.login_status == "SUCCESS").all()
+        elif email:
+            user_history = query.filter(LoginHistory.email == email, LoginHistory.login_status == "SUCCESS").all()
+        else:
+            user_history = []
+
+        if user_history:
+            prev_ips = {h.ip_address for h in user_history if h.ip_address}
+            prev_devices = {(h.device_type, h.operating_system) for h in user_history if h.device_type and h.operating_system}
+            prev_browsers = {h.browser for h in user_history if h.browser}
+            prev_countries = {h.country for h in user_history if h.country and h.country != "Unknown"}
+
+            if ip_address and ip_address not in prev_ips and len(prev_ips) > 0:
+                signals.append("NEW_IP")
+            if (device_type, operating_system) not in prev_devices and len(prev_devices) > 0:
+                signals.append("NEW_DEVICE")
+            if browser and browser not in prev_browsers and len(prev_browsers) > 0:
+                signals.append("NEW_BROWSER")
+            if country and country != "Unknown" and country not in prev_countries and len(prev_countries) > 0:
+                signals.append("NEW_COUNTRY")
+
+        # Check recent failures for this user / IP
+        fail_query = session.query(LoginHistory).filter(
+            LoginHistory.login_status == "FAILED",
+            LoginHistory.login_timestamp >= fifteen_mins_ago
+        )
+        if user_id:
+            fail_count = fail_query.filter(LoginHistory.user_id == user_id).count()
+        elif email:
+            fail_count = fail_query.filter(LoginHistory.email == email).count()
+        elif ip_address:
+            fail_count = fail_query.filter(LoginHistory.ip_address == ip_address).count()
+        else:
+            fail_count = 0
+
+        if fail_count >= 3:
+            signals.append("REPEATED_FAILED_LOGIN")
+
+        # Check rapid login attempts from same IP
+        if ip_address:
+            recent_rapid = session.query(LoginHistory).filter(
+                LoginHistory.ip_address == ip_address,
+                LoginHistory.login_timestamp >= five_secs_ago
+            ).count()
+            if recent_rapid >= 2:
+                signals.append("RAPID_LOGIN_ATTEMPTS")
+
+        # Check multiple IPs in last 1 hour
+        if user_id:
+            recent_ips = session.query(LoginHistory.ip_address).filter(
+                LoginHistory.user_id == user_id,
+                LoginHistory.login_timestamp >= one_hour_ago
+            ).distinct().all()
+            if len(recent_ips) >= 2:
+                signals.append("MULTIPLE_IPS")
+
+        # Suspicious pattern combination
+        if ("NEW_COUNTRY" in signals and "NEW_DEVICE" in signals) or ("REPEATED_FAILED_LOGIN" in signals and "NEW_IP" in signals):
+            signals.append("SUSPICIOUS_LOGIN_PATTERN")
+
+        # Calculate score and level
+        score = len(signals) * 20
+        if "SUSPICIOUS_LOGIN_PATTERN" in signals:
+            score += 30
+        if "REPEATED_FAILED_LOGIN" in signals:
+            score += 20
+
+        score = min(100, score)
+
+        if score >= 75:
+            level = "CRITICAL"
+        elif score >= 50:
+            level = "HIGH"
+        elif score >= 25:
+            level = "MEDIUM"
+        else:
+            level = "LOW"
+
+        return score, level, signals
+    finally:
+        session.close()
+
+
+def record_login_history(
+    user_id=None,
+    email=None,
+    username=None,
+    auth_method="PASSWORD",
+    provider_user_id=None,
+    status="SUCCESS",
+    ip_address=None,
+    user_agent_str=None,
+    failure_reason=None,
+    session_id=None,
+):
+    """
+    Records an authentication attempt in the login_history table.
+    Enforces security: no raw passwords/tokens stored.
+    """
+    import hashlib
+    from auth.device_detector import parse_user_agent
+    from auth.geoip_helper import resolve_ip_location
+    from auth.security_notifier import dispatch_security_event
+
+    dev_info = parse_user_agent(user_agent_str)
+    geo_info = resolve_ip_location(ip_address)
+
+    # Risk evaluation
+    risk_score, risk_level, risk_signals = evaluate_user_login_risk(
+        user_id=user_id,
+        ip_address=ip_address,
+        browser=dev_info["browser"],
+        operating_system=dev_info["operating_system"],
+        device_type=dev_info["device_type"],
+        country=geo_info["country"],
+        email=email,
+    )
+
+    sess_hash = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:64] if session_id else None
+
+    history_entry = LoginHistory(
+        user_id=user_id,
+        email=email,
+        username=username,
+        authentication_method=auth_method,
+        provider_user_id=provider_user_id,
+        login_timestamp=utc_now(),
+        login_status=status,
+        ip_address=ip_address or "127.0.0.1",
+        user_agent=(user_agent_str or "unknown")[:500],
+        browser=dev_info["browser"],
+        browser_version=dev_info["browser_version"],
+        operating_system=dev_info["operating_system"],
+        device_type=dev_info["device_type"],
+        device_name=dev_info["device_name"],
+        country=geo_info["country"],
+        region=geo_info["region"],
+        city=geo_info["city"],
+        session_id_hash=sess_hash,
+        failure_reason=failure_reason,
+        risk_score=risk_score,
+        risk_level=risk_level,
+        risk_signals=json.dumps(risk_signals),
+    )
+
+    session = _get_session()
+    try:
+        session.add(history_entry)
+        session.commit()
+        session.refresh(history_entry)
+        record_dict = history_entry.to_dict()
+
+        # Trigger notification events for high risk or new device/IP signals
+        if risk_level in ("HIGH", "CRITICAL") or any(s in risk_signals for s in ["NEW_DEVICE", "NEW_IP", "SUSPICIOUS_LOGIN_PATTERN", "REPEATED_FAILED_LOGIN"]):
+            event_type = "SUSPICIOUS_LOGIN" if "SUSPICIOUS_LOGIN_PATTERN" in risk_signals or risk_level in ("HIGH", "CRITICAL") else ("NEW_DEVICE_LOGIN" if "NEW_DEVICE" in risk_signals else "NEW_IP_LOGIN")
+            dispatch_security_event(event_type, record_dict)
+
+        return record_dict
+    except Exception as exc:
+        session.rollback()
+        return None
+    finally:
+        session.close()
+
+
+def get_login_history(
+    user_id=None,
+    limit=50,
+    offset=0,
+    status=None,
+    method=None,
+    date_from=None,
+    date_to=None,
+    search=None,
+):
+    """Retrieves paginated login history items."""
+    session = _get_session()
+    try:
+        query = session.query(LoginHistory)
+        if user_id is not None:
+            query = query.filter(LoginHistory.user_id == user_id)
+        if status:
+            query = query.filter(LoginHistory.login_status.ilike(status.strip()))
+        if method:
+            query = query.filter(LoginHistory.authentication_method.ilike(method.strip()))
+        if date_from:
+            try:
+                dt_from = datetime.fromisoformat(date_from)
+                query = query.filter(LoginHistory.login_timestamp >= dt_from)
+            except Exception:
+                pass
+        if date_to:
+            try:
+                dt_to = datetime.fromisoformat(date_to)
+                query = query.filter(LoginHistory.login_timestamp <= dt_to)
+            except Exception:
+                pass
+        if search:
+            term = f"%{search.strip()}%"
+            query = query.filter(
+                (LoginHistory.username.ilike(term)) |
+                (LoginHistory.email.ilike(term)) |
+                (LoginHistory.ip_address.ilike(term)) |
+                (LoginHistory.browser.ilike(term)) |
+                (LoginHistory.operating_system.ilike(term))
+            )
+
+        total = query.count()
+        items = query.order_by(LoginHistory.login_timestamp.desc()).offset(offset).limit(limit).all()
+        return {
+            "items": [item.to_dict() for item in items],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+    finally:
+        session.close()
+
+
+def get_user_login_history(user_id, limit=50, offset=0):
+    """Retrieves login history for a specific user ID."""
+    return get_login_history(user_id=user_id, limit=limit, offset=offset)
+
+
+def get_security_activity_summary(user_id=None):
+    """
+    Computes backend aggregate security activity summary metrics:
+    - total_logins
+    - successful_logins
+    - failed_logins
+    - blocked_logins
+    - unique_ips
+    - unique_devices
+    - last_successful_login
+    - last_failed_login
+    - most_used_method
+    - new_device_count
+    - suspicious_login_count
+    """
+    session = _get_session()
+    try:
+        query = session.query(LoginHistory)
+        if user_id is not None:
+            query = query.filter(LoginHistory.user_id == user_id)
+
+        all_records = query.all()
+        total_logins = len(all_records)
+        successful_logins = len([r for r in all_records if r.login_status == "SUCCESS"])
+        failed_logins = len([r for r in all_records if r.login_status == "FAILED"])
+        blocked_logins = len([r for r in all_records if r.login_status == "BLOCKED"])
+
+        unique_ips = len({r.ip_address for r in all_records if r.ip_address})
+        unique_devices = len({(r.device_type, r.operating_system, r.browser) for r in all_records if r.device_type and r.operating_system})
+
+        success_records = [r for r in all_records if r.login_status == "SUCCESS" and r.login_timestamp]
+        failed_records = [r for r in all_records if r.login_status in ("FAILED", "BLOCKED") and r.login_timestamp]
+
+        last_success = max([r.login_timestamp for r in success_records]).isoformat() if success_records else None
+        last_failed = max([r.login_timestamp for r in failed_records]).isoformat() if failed_records else None
+
+        methods = {}
+        new_device_count = 0
+        suspicious_count = 0
+
+        for r in all_records:
+            m = r.authentication_method or "PASSWORD"
+            methods[m] = methods.get(m, 0) + 1
+
+            signals = []
+            if r.risk_signals:
+                try:
+                    signals = json.loads(r.risk_signals) if isinstance(r.risk_signals, str) else r.risk_signals
+                except Exception:
+                    signals = [s.strip() for s in str(r.risk_signals).split(",")]
+
+            if "NEW_DEVICE" in signals:
+                new_device_count += 1
+            if r.risk_level in ("HIGH", "CRITICAL") or "SUSPICIOUS_LOGIN_PATTERN" in signals:
+                suspicious_count += 1
+
+        most_used_method = max(methods.items(), key=lambda x: x[1])[0] if methods else "None"
+
+        return {
+            "total_logins": total_logins,
+            "successful_logins": successful_logins,
+            "failed_logins": failed_logins,
+            "blocked_logins": blocked_logins,
+            "unique_ips": unique_ips,
+            "unique_devices": unique_devices,
+            "last_successful_login": last_success,
+            "last_failed_login": last_failed,
+            "most_used_method": most_used_method,
+            "new_device_count": new_device_count,
+            "suspicious_login_count": suspicious_count,
+        }
+    finally:
+        session.close()
+
+
+def purge_old_login_history(days=None):
+    """Optional retention purging for login history records older than given days."""
+    if not days or days <= 0:
+        return 0
+    session = _get_session()
+    try:
+        cutoff = utc_now() - timedelta(days=days)
+        deleted_count = session.query(LoginHistory).filter(LoginHistory.login_timestamp < cutoff).delete()
+        session.commit()
+        return deleted_count
+    except Exception:
+        session.rollback()
+        return 0
+    finally:
+        session.close()
+
