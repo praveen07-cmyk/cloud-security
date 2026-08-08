@@ -1,0 +1,19 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowEventBridgeToSendMessages",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "events.amazonaws.com"
+            },
+            "Action": "sqs:SendMessage",
+            "Resource": "arn:aws:sqs:ap-south-1:774075583705:cloudsec-*",
+            "Condition": {
+                "ArnEquals": {
+                    "aws:SourceArn": "arn:aws:events:ap-south-1:774075583705:rule/cloudsec-*"
+                }
+            }
+        }
+    ]
+}

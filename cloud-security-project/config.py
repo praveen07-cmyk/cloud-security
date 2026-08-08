@@ -14,14 +14,20 @@ def env_bool(name, default=False):
 
 
 class Config:
+    ENVIRONMENT = os.getenv("FLASK_ENV", "development").lower()
     DEBUG = env_bool("DEBUG", False)
-    SECRET_KEY_SOURCE = "environment" if (os.getenv("SECRET_KEY") or os.getenv("FLASK_SECRET_KEY")) else "development-fallback"
-    SECRET_KEY = (
-        os.getenv("SECRET_KEY")
-        or os.getenv("FLASK_SECRET_KEY")
-        or ("change-this-development-secret" if DEBUG else secrets.token_hex(32))
-    )
+    
+    _env_secret = os.getenv("SECRET_KEY") or os.getenv("FLASK_SECRET_KEY")
+    if ENVIRONMENT == "production" and not _env_secret:
+        raise ValueError("FATAL: SECRET_KEY environment variable is required in production. Aborting boot.")
+        
+    SECRET_KEY_SOURCE = "environment" if _env_secret else "development-fallback"
+    SECRET_KEY = _env_secret or ("change-this-development-secret" if DEBUG else secrets.token_hex(32))
+    
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database/security_platform.db")
+    if ENVIRONMENT == "production" and DATABASE_URL.startswith("sqlite"):
+        raise ValueError("FATAL: SQLite is not supported in production. Use a PostgreSQL or MySQL DATABASE_URL.")
+        
     PROPAGATE_EXCEPTIONS = False
     TRAP_HTTP_EXCEPTIONS = False
     SESSION_COOKIE_HTTPONLY = True
@@ -40,3 +46,4 @@ class Config:
     BACKUP_FOLDER = os.getenv("BACKUP_FOLDER", "backups")
     ENABLE_HSTS = env_bool("ENABLE_HSTS", False)
     HSTS_MAX_AGE = int(os.getenv("HSTS_MAX_AGE", "31536000"))
+    ENFORCE_MFA = env_bool("ENFORCE_MFA", False)

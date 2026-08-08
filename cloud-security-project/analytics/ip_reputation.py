@@ -51,6 +51,7 @@ def get_ip_reputation(source_ip, all_incidents):
     last_seen = matching[-1].get("time") if matching else "Never"
 
     return {
+        "ip_address": source_ip,
         "reputation": reputation,
         "status": reputation if reputation != "Unknown" else "Unknown",
         "attack_count": attack_count,

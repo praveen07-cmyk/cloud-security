@@ -1,0 +1,118 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "STSValidation",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EventBridgeConfiguration",
+            "Effect": "Allow",
+            "Action": [
+                "events:ListRules",
+                "events:DescribeRule",
+                "events:ListTargetsByRule",
+                "events:PutRule",
+                "events:PutTargets",
+                "events:RemoveTargets",
+                "events:DeleteRule"
+            ],
+            "Resource": [
+                "arn:aws:events:ap-south-1:*:rule/cloudsec-ai-security-events",
+                "arn:aws:events:ap-south-1:*:rule/cloudsec-*"
+            ]
+        },
+        {
+            "Sid": "EventBridgeGlobalValidation",
+            "Effect": "Allow",
+            "Action": [
+                "events:ListRules"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "SQSQueueManagement",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:CreateQueue",
+                "sqs:SetQueueAttributes",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+                "sqs:DeleteQueue"
+            ],
+            "Resource": [
+                "arn:aws:sqs:ap-south-1:*:cloudsec-*"
+            ]
+        },
+        {
+            "Sid": "SQSGlobalValidation",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:ListQueues"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "SQSWorkerConsumption",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:ChangeMessageVisibility"
+            ],
+            "Resource": [
+                "arn:aws:sqs:ap-south-1:*:cloudsec-*"
+            ]
+        },
+        {
+            "Sid": "CloudTrailConfiguration",
+            "Effect": "Allow",
+            "Action": [
+                "cloudtrail:DescribeTrails",
+                "cloudtrail:GetTrailStatus",
+                "cloudtrail:CreateTrail",
+                "cloudtrail:StartLogging",
+                "cloudtrail:UpdateTrail",
+                "cloudtrail:StopLogging",
+                "cloudtrail:DeleteTrail"
+            ],
+            "Resource": [
+                "arn:aws:cloudtrail:ap-south-1:*:trail/cloudsec-*"
+            ]
+        },
+        {
+            "Sid": "CloudTrailGlobalValidation",
+            "Effect": "Allow",
+            "Action": [
+                "cloudtrail:DescribeTrails",
+                "cloudtrail:ListTrails"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3ForCloudTrail",
+            "Effect": "Allow",
+            "Action": [
+                "s3:CreateBucket",
+                "s3:PutBucketPolicy",
+                "s3:GetBucketPolicy",
+                "s3:ListBucket",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::cloudsec-*",
+                "arn:aws:s3:::cloudsec-*/*"
+            ]
+        },
+        {
+            "Sid": "IAMPassRoleForCloudTrailAndEvents",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::*:role/cloudsec-*"
+        }
+    ]
+}

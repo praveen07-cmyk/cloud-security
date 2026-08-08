@@ -9,6 +9,7 @@
 {% set recommendations = recommendations if recommendations is defined else [] %}
 {% set timeline_data = timeline if timeline is defined else [] %}
 
+<div data-page-module="investigate">
 <section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
   <div>
     <div class="section-title mb-1"><i class="bi bi-search"></i> Threat Investigation</div>
@@ -123,4 +124,5 @@
   <p class="mb-0" style="color: var(--text-muted);">No incident data is available for this investigation view.</p>
 </div>
 {% endif %}
+</div>
 {% endblock %}

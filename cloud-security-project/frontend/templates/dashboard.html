@@ -22,6 +22,7 @@
 {% endblock %}
 
 {% block content %}
+<div data-page-module="dashboard">
 <section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
   <div>
     <div class="section-title mb-1"><i class="bi bi-speedometer2"></i> Security Operations Center</div>
@@ -99,14 +100,37 @@
 
   <div class="col-lg-5 col-md-6">
     <div class="glass-card h-100">
-      <div class="section-title"><i class="bi bi-hdd-network"></i> Cloud Infrastructure Health</div>
-      <div class="row g-2">
-        <div class="col-6"><div class="status-card"><strong>Cloud Server</strong><div class="text-success">Operational</div></div></div>
-        <div class="col-6"><div class="status-card"><strong>Database</strong><div class="text-success">Healthy</div></div></div>
-        <div class="col-6"><div class="status-card"><strong>API Gateway</strong><div class="text-success">Live</div></div></div>
-        <div class="col-6"><div class="status-card"><strong>Firewall</strong><div class="text-warning">Reviewing</div></div></div>
-        <div class="col-12"><div class="status-card"><strong>Storage</strong><div class="text-success">Available</div></div></div>
+      {% if aws_mode == "Local AI Mode" %}
+      <div class="section-title text-success"><i class="bi bi-server"></i> Local AI Mode</div>
+      <p class="mb-3 text-muted">AWS monitoring is currently disconnected.</p>
+      <p class="mb-2">The platform is analyzing:</p>
+      <ul class="text-muted" style="list-style-type: none; padding-left: 0;">
+        <li>• Historical AWS events</li>
+        <li>• Cached inventory</li>
+        <li>• Uploaded security files</li>
+        <li>• Stored incidents</li>
+        <li>• Local test events</li>
+      </ul>
+      <div class="row g-2 mt-2">
+        <div class="col-6"><div class="status-card"><strong>AI Engine</strong><div class="text-success">Active</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>Database</strong><div class="text-success">Connected</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>Reports</strong><div class="text-success">Available</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>AWS Pipeline</strong><div class="text-secondary">Paused</div></div></div>
       </div>
+      {% else %}
+      <div class="section-title text-accent"><i class="bi bi-cloud-check-fill"></i> Live AWS Mode</div>
+      <div class="row g-2">
+        <div class="col-6"><div class="status-card"><strong>AWS Account</strong><div class="text-success">Verified</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>Region</strong><div class="text-success">ap-south-1</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>CloudTrail</strong><div class="text-success">Connected</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>EventBridge</strong><div class="text-success">Connected</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>Amazon SQS</strong><div class="text-success">Connected</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>Worker</strong><div class="text-success">Running</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>AI Engine</strong><div class="text-success">Running</div></div></div>
+        <div class="col-6"><div class="status-card"><strong>Database</strong><div class="text-success">Connected</div></div></div>
+        <div class="col-12"><div class="status-card"><strong>Last Event</strong><div class="text-muted" id="lastEventTime">--</div></div></div>
+      </div>
+      {% endif %}
     </div>
   </div>
 
@@ -231,4 +255,5 @@
      data-traffic-pattern='{{ traffic_pattern|tojson }}'
      data-security-score='{{ security_score }}'
      data-load-demo-url="{{ url_for('load_demo_threats') }}"></div>
+</div>
 {% endblock %}

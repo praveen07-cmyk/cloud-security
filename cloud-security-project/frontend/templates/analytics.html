@@ -3,6 +3,7 @@
 {% block title %}Analytics - Cloud Security Analytics{% endblock %}
 
 {% block content %}
+<div data-page-module="analytics">
 <section class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
   <div>
     <div class="section-title mb-1"><i class="bi bi-bar-chart-line-fill"></i> Security Analytics</div>
@@ -110,21 +111,24 @@
     </div>
   </div>
 </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  const WEEKLY_LABELS = {{ weekly_labels|tojson }};
-  const WEEKLY_COUNTS = {{ weekly_counts|tojson }};
-  const ATTACK_TYPE_DATA = {{ attack_distribution|tojson }};
-  const SEVERITY_DATA = {{ severity_distribution|tojson }};
-  const STATUS_DATA = {{ status_distribution|tojson }};
+  window.SOC.registerPage("analytics", function(root) {
+      const WEEKLY_LABELS = {{ weekly_labels|tojson }};
+      const WEEKLY_COUNTS = {{ weekly_counts|tojson }};
+      const ATTACK_TYPE_DATA = {{ attack_distribution|tojson }};
+      const SEVERITY_DATA = {{ severity_distribution|tojson }};
+      const STATUS_DATA = {{ status_distribution|tojson }};
 
-  const weeklyCanvas = document.getElementById('weeklyThreatChart');
-  if (weeklyCanvas) {
-    weeklyCanvas.id = 'weeklyChart';
-  }
+      const weeklyCanvas = root.querySelector('#weeklyThreatChart');
+      if (weeklyCanvas) {
+        weeklyCanvas.id = 'weeklyChart';
+      }
 
-  initAnalyticsCharts(WEEKLY_LABELS, WEEKLY_COUNTS, ATTACK_TYPE_DATA, SEVERITY_DATA, STATUS_DATA);
+      initAnalyticsCharts(WEEKLY_LABELS, WEEKLY_COUNTS, ATTACK_TYPE_DATA, SEVERITY_DATA, STATUS_DATA);
+  });
 </script>
 {% endblock %}

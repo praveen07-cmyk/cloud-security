@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>Select Operating Mode - Cloud Security Analytics</title>
+
+  <script>
+    (function () {
+      try {
+        const storedTheme = localStorage.getItem("cloudsec-theme");
+        const preferred = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", storedTheme || preferred);
+      } catch (error) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+  <style>
+    .mode-option {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mode-option:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(0, 229, 255, 0.1);
+    }
+    .mode-option.selected {
+      border-color: var(--accent);
+      background: rgba(0, 229, 255, 0.05);
+    }
+    .mode-title {
+      font-weight: 600;
+      color: var(--text-high);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .mode-desc {
+      font-size: 0.9rem;
+      color: var(--text-med);
+      margin: 0;
+    }
+  </style>
+</head>
+<body class="login-body">
+  <div class="login-backdrop"></div>
+  <div class="login-orb orb-one"></div>
+  <div class="login-orb orb-two"></div>
+  <div class="login-orb orb-three"></div>
+
+  <main class="login-shell" style="max-width: 500px; margin: auto;">
+    <section class="login-card glass-card fade-in-up" style="width: 100%;">
+      <div class="login-header-row">
+        <div>
+          <div class="login-logo"><i class="bi bi-cpu"></i></div>
+          <h1 class="login-title mt-3">Choose Operating Mode</h1>
+          <p class="login-subtitle">Select the monitoring environment for your session.</p>
+        </div>
+        <button class="login-theme-btn" type="button" id="loginThemeToggle" aria-label="Toggle theme">
+          <i class="bi bi-moon-stars-fill" id="loginThemeIcon"></i>
+        </button>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="login-alert" style="{% if category == 'success' %}color: #00e676; background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.2);{% else %}color: #ff5252; background: rgba(255,82,82,0.1); border-color: rgba(255,82,82,0.2);{% endif %}">{{ message }}</div>
+          {% endfor %}
+        {% else %}
+          {% with plain_messages = get_flashed_messages() %}
+            {% if plain_messages %}
+              {% for msg in plain_messages %}
+                <div class="login-alert" style="color: #ff5252; background: rgba(255,82,82,0.1); border-color: rgba(255,82,82,0.2);">{{ msg }}</div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('select_mode') }}" class="login-form mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <label class="mode-option d-block {% if default_mode == 'Local AI Mode' %}selected{% endif %}">
+          <input type="radio" name="mode" value="Local AI Mode" class="d-none" {% if default_mode == 'Local AI Mode' %}checked{% endif %}>
+          <div class="mode-title"><i class="bi bi-server text-success"></i> Local AI Mode</div>
+          <p class="mode-desc">Use AI analysis with historical data, cached AWS inventory, uploaded files, and stored incidents.<br><small class="text-muted">Recommended for development.</small></p>
+        </label>
+
+        <label class="mode-option d-block {% if default_mode == 'Live AWS Mode' %}selected{% endif %}">
+          <input type="radio" name="mode" value="Live AWS Mode" class="d-none" {% if default_mode == 'Live AWS Mode' %}checked{% endif %}>
+          <div class="mode-title"><i class="bi bi-cloud-check-fill text-accent"></i> Live AWS Mode</div>
+          <p class="mode-desc">Connect to your verified AWS account. Start real-time monitoring.<br><small class="text-muted">Requires successful AWS validation.</small></p>
+        </label>
+
+        {% if diagnostics %}
+        <div class="card bg-dark border-danger mt-3 mb-3">
+          <div class="card-header bg-danger text-white">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> AWS Validation Failed
+          </div>
+          <div class="card-body p-2" style="max-height: 200px; overflow-y: auto;">
+            <ul class="list-group list-group-flush bg-transparent">
+              {% for key, result in diagnostics.items() %}
+                <li class="list-group-item bg-transparent text-white border-secondary p-2 d-flex justify-content-between align-items-center" style="font-size: 0.85rem;">
+                  <span><strong>{{ key }}</strong></span>
+                  <span class="text-end">
+                    {% if result.status == 'PASS' %}
+                      <span class="text-success"><i class="bi bi-check-circle-fill"></i> {{ result.status }}</span>
+                    {% elif result.status == 'WARNING' %}
+                      <span class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> {{ result.status }}</span><br>
+                      {% if result.reason %}
+                        <small class="text-muted d-block">{{ result.reason }}</small>
+                      {% endif %}
+                      {% if result.suggested_action %}
+                        <small class="text-info">Fix: {{ result.suggested_action }}</small>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-danger"><i class="bi bi-x-circle-fill"></i> {{ result.status }}</span><br>
+                      {% if result.reason %}
+                        <small class="text-muted d-block">{{ result.reason }}</small>
+                      {% endif %}
+                      {% if result.suggested_action %}
+                        <small class="text-warning">Fix: {{ result.suggested_action }}</small>
+                      {% endif %}
+                    {% endif %}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="login-btn mt-4">
+          <i class="bi bi-box-arrow-in-right me-1"></i> Enter Platform
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const THEME_STORAGE_KEY = "cloudsec-theme";
+      const themeToggle = document.getElementById("loginThemeToggle");
+      const themeIcon = document.getElementById("loginThemeIcon");
+      
+      const options = document.querySelectorAll('.mode-option');
+      
+      options.forEach(opt => {
+        opt.addEventListener('click', () => {
+          options.forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+        });
+      });
+
+      function setTheme(theme, persist) {
+        const nextTheme = theme === "light" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", nextTheme);
+        if (themeIcon) {
+          themeIcon.className = nextTheme === "dark" ? "bi bi-moon-stars-fill" : "bi bi-sun-fill";
+        }
+        if (persist) {
+          try {
+            localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+          } catch (error) {
+            // Ignore storage errors.
+          }
+        }
+      }
+
+      setTheme(document.documentElement.getAttribute("data-theme") || "dark", false);
+
+      if (themeToggle) {
+        themeToggle.addEventListener("click", () => {
+          const current = document.documentElement.getAttribute("data-theme") || "dark";
+          document.body.classList.add("theme-transition");
+          setTheme(current === "dark" ? "light" : "dark", true);
+          window.setTimeout(() => document.body.classList.remove("theme-transition"), 280);
+        });
+      }
+
+    })();
+  </script>
+</body>
+</html>

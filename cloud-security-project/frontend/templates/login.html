@@ -99,8 +99,8 @@
         <div class="login-separator">Or continue with</div>
 
         <div class="login-secondary-actions">
-          <button type="button" class="social-login-btn google" id="googleLoginBtn"><i class="bi bi-google"></i> Google OAuth Ready</button>
-          <button type="button" class="social-login-btn github" id="githubLoginBtn"><i class="bi bi-github"></i> GitHub OAuth Ready</button>
+          <a href="{{ url_for('google_login') }}" class="social-login-btn google" id="googleLoginBtn"><i class="bi bi-google"></i> Continue with Google</a>
+          <a href="{{ url_for('github_login') }}" class="social-login-btn github" id="githubLoginBtn"><i class="bi bi-github"></i> Continue with GitHub</a>
           <button type="button" class="social-login-btn" id="demoModeBtn"><i class="bi bi-lightning-charge-fill"></i> Demo Mode</button>
         </div>
 

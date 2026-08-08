@@ -1,0 +1,50 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "STSValidation",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "GlobalReadOperations",
+            "Effect": "Allow",
+            "Action": [
+                "cloudtrail:DescribeTrails",
+                "cloudtrail:ListTrails",
+                "events:ListRules",
+                "sqs:ListQueues"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ScopedReadOperations",
+            "Effect": "Allow",
+            "Action": [
+                "cloudtrail:GetTrailStatus",
+                "events:DescribeRule",
+                "events:ListTargetsByRule",
+                "sqs:GetQueueUrl",
+                "sqs:GetQueueAttributes"
+            ],
+            "Resource": [
+                "arn:aws:cloudtrail:ap-south-1:774075583705:trail/cloudsec-*",
+                "arn:aws:events:ap-south-1:774075583705:rule/cloudsec-*",
+                "arn:aws:sqs:ap-south-1:774075583705:cloudsec-*"
+            ]
+        },
+        {
+            "Sid": "WorkerConsumption",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:ChangeMessageVisibility"
+            ],
+            "Resource": "arn:aws:sqs:ap-south-1:774075583705:cloudsec-*"
+        }
+    ]
+}

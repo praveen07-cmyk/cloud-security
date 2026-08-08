@@ -14,7 +14,7 @@ import os
 import json
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, create_engine, inspect
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 from werkzeug.security import check_password_hash, generate_password_hash
 from dotenv import load_dotenv
@@ -60,6 +60,21 @@ class User(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
 
+class OAuthIdentity(Base):
+    __tablename__ = "oauth_identities"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    provider = Column(String(40), nullable=False, index=True)  # 'google' or 'github'
+    provider_user_id = Column(String(128), nullable=False, index=True)
+    email = Column(String(160), nullable=True, index=True)
+    display_name = Column(String(120), nullable=True)
+    profile_image_url = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    last_login_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+
+
 class ThreatIncident(Base):
     __tablename__ = "threat_incidents"
 
@@ -77,6 +92,7 @@ class ThreatIncident(Base):
     priority = Column(String(80), nullable=False)
     estimated_downtime = Column(String(80), nullable=False)
     estimated_financial_loss = Column(String(80), nullable=False)
+    feedback_status = Column(String(40), default="None", nullable=False)
     created_at = Column(DateTime, default=utc_now, nullable=False)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
@@ -97,6 +113,36 @@ class Role(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(80), unique=True, nullable=False)
     description = Column(String(255), nullable=False)
+
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+
+    key = Column(String(80), primary_key=True)
+    value = Column(String(255), nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+
+def get_system_setting(key, default_value=None):
+    db = SessionLocal()
+    try:
+        setting = db.query(SystemSettings).filter_by(key=key).first()
+        return setting.value if setting else default_value
+    finally:
+        db.close()
+
+
+def set_system_setting(key, value):
+    db = SessionLocal()
+    try:
+        setting = db.query(SystemSettings).filter_by(key=key).first()
+        if setting:
+            setting.value = str(value)
+        else:
+            setting = SystemSettings(key=key, value=str(value))
+            db.add(setting)
+        db.commit()
+    finally:
+        db.close()
 
 
 class Permission(Base):
@@ -219,19 +265,33 @@ DEFAULT_USERS = [
         "role": "Administrator",
         "department": "Security Operations",
     },
-    {
-        "username": "praveen",
-        "password": "praveen123",
-        "full_name": "Praveen",
-        "role": "SOC Analyst",
-        "department": "Security Operations",
-    },
+      {
+          "username": "praveen",
+          "password": "praveen07",
+          "full_name": "Praveen",
+          "role": "Cloud Administrator",
+          "department": "Security Operations",
+      },
     {
         "username": "sanjay",
         "password": "sanjay123",
         "full_name": "Sanjay",
         "role": "Cloud Administrator",
         "department": "Cloud Infrastructure",
+    },
+    {
+        "username": "auditor",
+        "password": "auditor123",
+        "full_name": "Compliance Auditor",
+        "role": "Auditor",
+        "department": "Audit & Compliance",
+    },
+    {
+        "username": "viewer",
+        "password": "viewer123",
+        "full_name": "Read Only Viewer",
+        "role": "Viewer",
+        "department": "Security Operations",
     },
     {
         "username": "sainathan",
@@ -316,6 +376,46 @@ ROLE_PERMISSIONS = {
         "audit_logs": True,
         "upload": True,
     },
+    "Cloud Administrator": {
+        "dashboard": True,
+        "analytics": True,
+        "reports": False,
+        "settings": True,
+        "profile": True,
+        "investigation": False,
+        "audit_logs": False,
+        "upload": False,
+    },
+    "Security Analyst": {
+        "dashboard": True,
+        "analytics": True,
+        "reports": False,
+        "settings": False,
+        "profile": True,
+        "investigation": True,
+        "audit_logs": False,
+        "upload": False,
+    },
+    "Auditor": {
+        "dashboard": True,
+        "analytics": False,
+        "reports": True,
+        "settings": False,
+        "profile": True,
+        "investigation": False,
+        "audit_logs": True,
+        "upload": False,
+    },
+    "Viewer": {
+        "dashboard": True,
+        "analytics": True,
+        "reports": False,
+        "settings": False,
+        "profile": True,
+        "investigation": False,
+        "audit_logs": False,
+        "upload": False,
+    },
     "SOC Manager": {
         "dashboard": True,
         "analytics": True,
@@ -353,16 +453,6 @@ ROLE_PERMISSIONS = {
         "settings": False,
         "profile": True,
         "investigation": True,
-        "audit_logs": False,
-        "upload": False,
-    },
-    "Cloud Administrator": {
-        "dashboard": True,
-        "analytics": True,
-        "reports": False,
-        "settings": True,
-        "profile": True,
-        "investigation": False,
         "audit_logs": False,
         "upload": False,
     },
@@ -432,8 +522,8 @@ def _incident_to_dict(incident):
         "priority": incident.priority,
         "estimated_downtime": incident.estimated_downtime,
         "estimated_financial_loss": incident.estimated_financial_loss,
-        "created_at": incident.created_at,
-        "updated_at": incident.updated_at,
+        "created_at": incident.created_at.isoformat() if hasattr(incident.created_at, "isoformat") else str(incident.created_at),
+        "updated_at": incident.updated_at.isoformat() if hasattr(incident.updated_at, "isoformat") else str(incident.updated_at),
     }
 
 
@@ -808,7 +898,86 @@ def get_or_create_firebase_user(firebase_uid, email, full_name, provider):
 
 
 def secrets_safe_password(seed):
-    return f"firebase-auth-{seed}-{utc_now().timestamp()}"
+    return f"oauth-auth-{seed}-{utc_now().timestamp()}"
+
+
+def get_or_create_oauth_user(provider, provider_user_id, email=None, display_name=None, profile_image_url=None, current_authenticated_user=None):
+    """
+    Safely finds or creates a user for OAuth (Google/GitHub).
+    Ensures safe role assignment (Read Only Analyst) and prevents unauthenticated email-linking account takeover.
+    """
+    session = _get_session()
+    try:
+        # 1. Search for existing OAuthIdentity
+        identity = session.query(OAuthIdentity).filter_by(provider=provider, provider_user_id=str(provider_user_id)).first()
+        
+        if identity:
+            identity.last_login_at = utc_now()
+            if email:
+                identity.email = email
+            if display_name:
+                identity.display_name = display_name
+            if profile_image_url:
+                identity.profile_image_url = profile_image_url
+                
+            user = session.query(User).filter_by(id=identity.user_id).first()
+            if user:
+                user.updated_at = utc_now()
+                session.commit()
+                session.refresh(user)
+                return _user_to_dict(user), "LOGIN_SUCCESS"
+
+        # 2. Handle account linking if user is already authenticated
+        user = None
+        if current_authenticated_user and current_authenticated_user.get("id"):
+            user = session.query(User).filter_by(id=current_authenticated_user["id"]).first()
+            
+        if user is None and email:
+            # Check if an existing local account shares the email
+            existing_user = session.query(User).filter_by(email=email).first()
+            if existing_user:
+                # DO NOT blindly merge! Require existing user to be logged in to link account safely.
+                return None, "ACCOUNT_LINK_REQUIRED"
+
+        # 3. Create new user if not found and not linking to existing account
+        if user is None:
+            base_username = (email.split("@")[0] if email else f"{provider}_{provider_user_id}").lower().replace(" ", "_")
+            username = base_username
+            idx = 1
+            while session.query(User).filter_by(username=username).first() is not None:
+                username = f"{base_username}_{idx}"
+                idx += 1
+                
+            user = User(
+                username=username,
+                password_hash=generate_password_hash(secrets_safe_password(provider_user_id)),
+                full_name=display_name or email or f"{provider.capitalize()} User",
+                role="Read Only Analyst",  # Safest default role (Viewer)
+                department="Social Identity",
+                email=email,
+                auth_provider=provider,
+            )
+            session.add(user)
+            session.flush()
+
+        # 4. Attach new OAuthIdentity
+        new_identity = OAuthIdentity(
+            user_id=user.id,
+            provider=provider,
+            provider_user_id=str(provider_user_id),
+            email=email,
+            display_name=display_name,
+            profile_image_url=profile_image_url,
+            created_at=utc_now(),
+            last_login_at=utc_now()
+        )
+        session.add(new_identity)
+        session.commit()
+        session.refresh(user)
+        return _user_to_dict(user), "USER_CREATED"
+    finally:
+        session.close()
+
 
 
 def get_all_incidents():
@@ -1030,6 +1199,53 @@ def add_prediction_incident(source_ip, destination_ip, attack_type, confidence=8
         return _incident_to_dict(incident)
     finally:
         session.close()
+
+
+def get_user_by_username(username):
+    if not username:
+        return None
+    session = _get_session()
+    try:
+        user = session.query(User).filter(User.username.ilike(username.strip())).first()
+        return _user_to_dict(user)
+    finally:
+        session.close()
+
+
+def change_user_password(username, old_password, new_password):
+    session = _get_session()
+    try:
+        user = session.query(User).filter(User.username.ilike(username.strip())).first()
+        if user and check_password_hash(user.password_hash, old_password):
+            user.password_hash = generate_password_hash(new_password)
+            user.updated_at = utc_now()
+            session.commit()
+            return True
+        return False
+    finally:
+        session.close()
+
+
+def reset_user_password(username, new_password):
+    session = _get_session()
+    try:
+        user = session.query(User).filter(User.username.ilike(username.strip())).first()
+        if user:
+            user.password_hash = generate_password_hash(new_password)
+            user.updated_at = utc_now()
+            session.commit()
+            return True
+        return False
+    finally:
+        session.close()
+
+
+def restore_database_from_file(backup_path):
+    if not os.path.exists(backup_path):
+        return False
+    import shutil
+    shutil.copy2(backup_path, DB_PATH)
+    return True
 
 
 def get_dashboard_stats():

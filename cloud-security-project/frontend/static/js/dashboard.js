@@ -174,49 +174,56 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const dashboardConfig = document.getElementById("dashboardConfig");
-  if (dashboardConfig) {
-    const attackDistribution = JSON.parse(dashboardConfig.dataset.attackDistribution || "{}");
-    const trafficPattern = JSON.parse(dashboardConfig.dataset.trafficPattern || "[]");
-    const securityScore = parseInt(dashboardConfig.dataset.securityScore || "0", 10);
+    // The rest of the setup is now handled via the SOC page module lifecycle.
+    window.setTimeout(() => document.body.classList.remove("ui-loading"), reduceMotion ? 0 : 520);
+});
 
-    const loadDemoBtn = document.getElementById("loadDemoBtn");
-    if (loadDemoBtn) {
-      loadDemoBtn.addEventListener("click", async () => {
-        try {
-          const response = await fetch(dashboardConfig.dataset.loadDemoUrl || "/load-demo-threats");
-          const data = await response.json();
-          const body = document.getElementById("alertsTableBody");
-          if (body && Array.isArray(data.incidents)) {
-            renderIncidentRows(body, data.incidents);
-            showToast('Demo threats loaded successfully.', 'success');
-          }
-        } catch (error) {
-          showToast('Unable to load demo threats right now.', 'danger');
+// ---------- Dashboard HTMX Page Module ----------
+window.SOC.registerPage("dashboard", function(root) {
+    let dashboardCleanup = [];
+    const dashboardConfig = root.querySelector("#dashboardConfig");
+    
+    if (dashboardConfig) {
+        const attackDistribution = JSON.parse(dashboardConfig.dataset.attackDistribution || "{}");
+        const trafficPattern = JSON.parse(dashboardConfig.dataset.trafficPattern || "[]");
+        const securityScore = parseInt(dashboardConfig.dataset.securityScore || "0", 10);
+
+        const loadDemoBtn = root.querySelector("#loadDemoBtn");
+        if (loadDemoBtn) {
+            const handleLoadDemo = async () => {
+                try {
+                    const response = await fetch(dashboardConfig.dataset.loadDemoUrl || "/load-demo-threats");
+                    const data = await response.json();
+                    const body = root.querySelector("#alertsTableBody");
+                    if (body && Array.isArray(data.incidents)) {
+                        renderIncidentRows(body, data.incidents);
+                        showToast('Demo threats loaded successfully.', 'success');
+                    }
+                } catch (error) {
+                    showToast('Unable to load demo threats right now.', 'danger');
+                }
+            };
+            loadDemoBtn.addEventListener("click", handleLoadDemo);
+            dashboardCleanup.push(() => loadDemoBtn.removeEventListener("click", handleLoadDemo));
         }
-      });
+
+        initDashboardCharts(attackDistribution, trafficPattern, securityScore);
+        initThreatHeatmap();
     }
 
-    initDashboardCharts(attackDistribution, trafficPattern, securityScore);
-    initThreatHeatmap();
-  }
+    const handleIncidentsUpdate = (evt) => {
+        const data = evt.detail;
+        const incidents = Array.isArray(data && data.incidents) ? data.incidents : [];
+        console.log("[SocketIO/Dashboard] Incidents received:", incidents.length);
+        showToast(`Live incident feed synced (${incidents.length} incidents).`, "success");
+    };
+    
+    document.addEventListener("soc:incidents_update", handleIncidentsUpdate);
+    dashboardCleanup.push(() => document.removeEventListener("soc:incidents_update", handleIncidentsUpdate));
 
-  // SocketIO connection (used to push fixed demo incidents on connect)
-  try {
-    const socket = io();
-    socket.on("connect", () => {
-      console.log("[SocketIO] Connected to server.");
-    });
-    socket.on("incidents_update", (data) => {
-      const incidents = Array.isArray(data && data.incidents) ? data.incidents : [];
-      console.log("[SocketIO] Incidents received:", incidents.length);
-      showToast(`Live incident feed synced (${incidents.length} incidents).`, "success");
-    });
-  } catch (e) {
-    console.warn("SocketIO not available:", e);
-  }
-
-  window.setTimeout(() => document.body.classList.remove("ui-loading"), reduceMotion ? 0 : 520);
+    return function cleanup() {
+        dashboardCleanup.forEach(fn => fn());
+    };
 });
 
 function initSplashScreen() {
@@ -405,7 +412,7 @@ function initDashboardCharts(attackDistribution, trafficPattern, securityScore) 
   // Live Traffic Chart (line)
   const trafficCtx = document.getElementById("liveTrafficChart");
   if (trafficCtx) {
-    new Chart(trafficCtx, {
+    window.replaceChart("liveTrafficChart", {
       type: "line",
       data: {
         labels: trafficPattern.map((_, i) => `T-${trafficPattern.length - i}`),
@@ -439,7 +446,7 @@ function initDashboardCharts(attackDistribution, trafficPattern, securityScore) 
   if (attackCtx) {
     const labels = Object.keys(attackDistribution);
     const values = Object.values(attackDistribution);
-    new Chart(attackCtx, {
+    window.replaceChart("attackDistributionChart", {
       type: "doughnut",
       data: {
         labels: labels,
@@ -464,7 +471,7 @@ function initDashboardCharts(attackDistribution, trafficPattern, securityScore) 
   const gaugeCtx = document.getElementById("severityGaugeChart");
   if (gaugeCtx) {
     const score = securityScore;
-    new Chart(gaugeCtx, {
+    window.replaceChart("severityGaugeChart", {
       type: "doughnut",
       data: {
         labels: ["Score", "Remaining"],
@@ -530,7 +537,7 @@ function initThreatHeatmap() {
 function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severityData, statusData) {
   const weeklyCtx = document.getElementById("weeklyChart");
   if (weeklyCtx) {
-    new Chart(weeklyCtx, {
+    window.replaceChart("weeklyChart", {
       type: "bar",
       data: {
         labels: weeklyLabels,
@@ -555,7 +562,7 @@ function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severit
 
   const attackTypeCtx = document.getElementById("attackTypeChart");
   if (attackTypeCtx) {
-    new Chart(attackTypeCtx, {
+    window.replaceChart("attackTypeChart", {
       type: "bar",
       data: {
         labels: Object.keys(attackTypeData),
@@ -580,7 +587,7 @@ function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severit
 
   const severityCtx = document.getElementById("severityChart");
   if (severityCtx) {
-    new Chart(severityCtx, {
+    window.replaceChart("severityChart", {
       type: "pie",
       data: {
         labels: Object.keys(severityData),
@@ -602,7 +609,7 @@ function initAnalyticsCharts(weeklyLabels, weeklyCounts, attackTypeData, severit
 
   const statusCtx = document.getElementById("statusChart");
   if (statusCtx) {
-    new Chart(statusCtx, {
+    window.replaceChart("statusChart", {
       type: "doughnut",
       data: {
         labels: Object.keys(statusData),

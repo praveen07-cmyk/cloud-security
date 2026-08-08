@@ -27,6 +27,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
   {% block extra_css %}{% endblock %}
 </head>
 <body data-theme="dark">
@@ -54,29 +55,72 @@
           <i class="bi bi-layout-sidebar-inset"></i>
         </button>
       </div>
-      <nav class="sidebar-nav" aria-label="Primary">
-        <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+      <nav class="sidebar-nav" aria-label="Primary" hx-boost="false">
+        <a href="{{ url_for('dashboard') }}" 
+           hx-get="{{ url_for('dashboard') }}" 
+           hx-target="#soc-main-content" 
+           hx-select="#soc-main-content" 
+           hx-swap="outerHTML transition:true" 
+           hx-push-url="true"
+           class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
           <i class="bi bi-grid-1x2-fill"></i> <span class="nav-label">Dashboard</span>
         </a>
-        <a href="{{ url_for('analytics') }}" class="nav-link {% if active_page == 'analytics' %}active{% endif %}">
+        <a href="{{ url_for('analytics') }}" 
+           hx-get="{{ url_for('analytics') }}" 
+           hx-target="#soc-main-content" 
+           hx-select="#soc-main-content" 
+           hx-swap="outerHTML transition:true" 
+           hx-push-url="true"
+           class="nav-link {% if active_page == 'analytics' %}active{% endif %}">
           <i class="bi bi-bar-chart-line-fill"></i> <span class="nav-label">Analytics</span>
         </a>
-        <a href="{{ url_for('reports') }}" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
+        <a href="{{ url_for('reports') }}" 
+           hx-get="{{ url_for('reports') }}" 
+           hx-target="#soc-main-content" 
+           hx-select="#soc-main-content" 
+           hx-swap="outerHTML transition:true" 
+           hx-push-url="true"
+           class="nav-link {% if active_page == 'reports' %}active{% endif %}">
           <i class="bi bi-file-earmark-text-fill"></i> <span class="nav-label">Reports</span>
         </a>
-        <a href="{{ url_for('trust_center') }}" class="nav-link {% if active_page == 'trust_center' %}active{% endif %}">
+        <a href="{{ url_for('trust_center') }}" 
+           hx-get="{{ url_for('trust_center') }}" 
+           hx-target="#soc-main-content" 
+           hx-select="#soc-main-content" 
+           hx-swap="outerHTML transition:true" 
+           hx-push-url="true"
+           class="nav-link {% if active_page == 'trust_center' %}active{% endif %}">
           <i class="bi bi-patch-check-fill"></i> <span class="nav-label">Trust Center</span>
         </a>
+        <!-- File uploads should not be HTMX boosted -->
         <a href="{{ url_for('upload_center') }}" class="nav-link {% if active_page == 'upload' %}active{% endif %}">
           <i class="bi bi-cloud-arrow-up-fill"></i> <span class="nav-label">Upload Center</span>
         </a>
-        <a href="{{ url_for('audit_logs') }}" class="nav-link {% if active_page == 'audit_logs' %}active{% endif %}">
+        <a href="{{ url_for('audit_logs') }}" 
+           hx-get="{{ url_for('audit_logs') }}" 
+           hx-target="#soc-main-content" 
+           hx-select="#soc-main-content" 
+           hx-swap="outerHTML transition:true" 
+           hx-push-url="true"
+           class="nav-link {% if active_page == 'audit_logs' %}active{% endif %}">
           <i class="bi bi-journal-check"></i> <span class="nav-label">Audit Logs</span>
         </a>
-        <a href="{{ url_for('settings') }}" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+        <a href="{{ url_for('settings') }}" 
+           hx-get="{{ url_for('settings') }}" 
+           hx-target="#soc-main-content" 
+           hx-select="#soc-main-content" 
+           hx-swap="outerHTML transition:true" 
+           hx-push-url="true"
+           class="nav-link {% if active_page == 'settings' %}active{% endif %}">
           <i class="bi bi-gear-fill"></i> <span class="nav-label">Settings</span>
         </a>
-        <a href="{{ url_for('profile') }}" class="nav-link {% if active_page == 'profile' %}active{% endif %}">
+        <a href="{{ url_for('profile') }}" 
+           hx-get="{{ url_for('profile') }}" 
+           hx-target="#soc-main-content" 
+           hx-select="#soc-main-content" 
+           hx-swap="outerHTML transition:true" 
+           hx-push-url="true"
+           class="nav-link {% if active_page == 'profile' %}active{% endif %}">
           <i class="bi bi-person-circle"></i> <span class="nav-label">Profile</span>
         </a>
         <hr class="sidebar-divider">
@@ -89,7 +133,7 @@
       </div>
     </aside>
 
-    <main class="main-content">
+    <main id="soc-main-content" class="main-content" hx-history-elt>
       <header class="topbar">
         <div class="d-flex align-items-center gap-3 flex-wrap">
           <button class="theme-toggle-btn mobile-toggle-btn" id="mobileSidebarToggle" type="button" aria-label="Toggle sidebar">
@@ -99,7 +143,15 @@
             <i class="bi bi-search"></i>
             <input type="text" id="globalSearch" placeholder="Search IP, attack type, analyst..." aria-label="Search incidents">
           </div>
-          <span class="demo-badge"><i class="bi bi-circle-fill" style="font-size:6px;"></i> DEMO MODE</span>
+          {% if aws_mode == "Live AWS Mode" %}
+            <span class="demo-badge" style="background: rgba(0,229,255,0.1); color: var(--accent); border-color: rgba(0,229,255,0.2);">
+              <i class="bi bi-cloud-check-fill"></i> Live AWS Mode
+            </span>
+          {% else %}
+            <span class="demo-badge" style="background: rgba(0,230,118,0.1); color: #00e676; border-color: rgba(0,230,118,0.2);">
+              <i class="bi bi-server"></i> Local AI Mode
+            </span>
+          {% endif %}
         </div>
 
         <div class="topbar-actions">
@@ -173,6 +225,118 @@
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script>
+    // --- Global Chart Registry ---
+    window.SOCCharts = new Map();
+    window.SOCChartObservers = new Map();
+
+    window.replaceChart = function(id, config) {
+        const existing = window.SOCCharts.get(id);
+        if (existing) {
+            existing.destroy();
+            window.SOCCharts.delete(id);
+        }
+        const existingObs = window.SOCChartObservers.get(id);
+        if (existingObs) {
+            existingObs.disconnect();
+            window.SOCChartObservers.delete(id);
+        }
+
+        const canvas = document.getElementById(id);
+        if (!canvas) return null;
+
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const chart = new Chart(canvas, config);
+                    window.SOCCharts.set(id, chart);
+                    obs.unobserve(canvas);
+                    obs.disconnect();
+                    window.SOCChartObservers.delete(id);
+                }
+            });
+        }, { rootMargin: '200px' });
+
+        observer.observe(canvas);
+        window.SOCChartObservers.set(id, observer);
+        return null;
+    };
+    window.SOC = window.SOC || {
+        pages: new Map(),
+        activeCleanup: null,
+        globalSocket: null
+    };
+
+    window.SOC.registerPage = function(name, initializer) {
+        window.SOC.pages.set(name, initializer);
+    };
+
+    window.SOC.initializePage = function(root = document) {
+        if (typeof window.SOC.activeCleanup === "function") {
+            window.SOC.activeCleanup();
+            window.SOC.activeCleanup = null;
+        }
+        // Cleanup all charts before rendering a new page
+        for (let [id, chart] of window.SOCCharts.entries()) {
+            chart.destroy();
+        }
+        window.SOCCharts.clear();
+
+        if (window.SOCChartObservers) {
+            for (let [id, obs] of window.SOCChartObservers.entries()) {
+                obs.disconnect();
+            }
+            window.SOCChartObservers.clear();
+        }
+
+        const pageEl = root.querySelector("[data-page-module]");
+        if (!pageEl) return;
+        const pageName = pageEl.dataset.pageModule;
+        const initializer = window.SOC.pages.get(pageName);
+        if (initializer) {
+            window.SOC.activeCleanup = initializer(root) || null;
+        }
+    };
+
+    // --- HTMX Lifecycle Hooks ---
+    document.addEventListener("htmx:afterSwap", function(evt) {
+        if(evt.detail.target.id === "soc-main-content") {
+            window.SOC.initializePage(document.getElementById("soc-main-content"));
+            // Update active state in sidebar
+            const currentPath = new URL(evt.detail.requestConfig.path, window.location.origin).pathname;
+            document.querySelectorAll(".sidebar-nav .nav-link").forEach(link => {
+                if (link.getAttribute("href") === currentPath) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+        }
+    });
+
+    // --- Global Socket.IO Connection ---
+    document.addEventListener("DOMContentLoaded", function() {
+        if (typeof io !== 'undefined') {
+            window.SOC.globalSocket = io({
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: Infinity
+            });
+            
+            // Dispatch custom events so individual pages can listen
+            const events = ['security_event_received', 'threat_detected', 'incident_created', 'worker_status'];
+            events.forEach(event => {
+                window.SOC.globalSocket.on(event, (data) => {
+                    document.dispatchEvent(new CustomEvent(`soc:${event}`, { detail: data }));
+                });
+            });
+        }
+        
+        // Initial page load module initialization
+        window.SOC.initializePage(document.getElementById("soc-main-content"));
+    });
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
