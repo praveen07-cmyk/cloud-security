@@ -237,6 +237,39 @@ class LoginHistory(Base):
         }
 
 
+class SecurityNotification(Base):
+    __tablename__ = "security_notifications"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    correlation_id = Column(String(64), nullable=True, index=True)
+    event_type = Column(String(80), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    email = Column(String(255), nullable=True)
+    risk_score = Column(Integer, default=0)
+    risk_level = Column(String(20), default="LOW")
+    channel = Column(String(40), default="TELEGRAM", nullable=False)
+    status = Column(String(20), default="PENDING", nullable=False)  # PENDING, SENT, FAILED, SUPPRESSED
+    failure_reason_safe = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "correlation_id": self.correlation_id,
+            "event_type": self.event_type,
+            "user_id": self.user_id,
+            "email": self.email,
+            "risk_score": self.risk_score,
+            "risk_level": self.risk_level,
+            "channel": self.channel,
+            "status": self.status,
+            "failure_reason_safe": self.failure_reason_safe,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+        }
+
+
 class Setting(Base):
 
     __tablename__ = "settings"
@@ -1677,4 +1710,66 @@ def purge_old_login_history(days=None):
         return 0
     finally:
         session.close()
+
+
+def record_security_notification(
+    event_type,
+    user_id=None,
+    email=None,
+    risk_score=0,
+    risk_level="LOW",
+    channel="TELEGRAM",
+    status="PENDING",
+    failure_reason_safe=None,
+    correlation_id=None,
+):
+    """Records a notification dispatch attempt in security_notifications."""
+    session = _get_session()
+    try:
+        sent_time = utc_now() if status == "SENT" else None
+        notif = SecurityNotification(
+            correlation_id=correlation_id,
+            event_type=event_type,
+            user_id=user_id,
+            email=email,
+            risk_score=risk_score,
+            risk_level=risk_level,
+            channel=channel,
+            status=status,
+            failure_reason_safe=failure_reason_safe,
+            created_at=utc_now(),
+            sent_at=sent_time,
+        )
+        session.add(notif)
+        session.commit()
+        session.refresh(notif)
+        return notif.to_dict()
+    except Exception:
+        session.rollback()
+        return None
+    finally:
+        session.close()
+
+
+def get_security_notifications(limit=50, offset=0, channel=None, status=None):
+    """Retrieves paginated security notification history records."""
+    session = _get_session()
+    try:
+        query = session.query(SecurityNotification)
+        if channel:
+            query = query.filter(SecurityNotification.channel.ilike(channel.strip()))
+        if status:
+            query = query.filter(SecurityNotification.status.ilike(status.strip()))
+
+        total = query.count()
+        items = query.order_by(SecurityNotification.created_at.desc()).offset(offset).limit(limit).all()
+        return {
+            "items": [item.to_dict() for item in items],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+    finally:
+        session.close()
+
 

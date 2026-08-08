@@ -39,3 +39,17 @@ def dispatch_security_event(event_type, payload):
             subscriber(event_type, payload)
         except Exception as exc:
             logger.error("Error in security event subscriber %s: %s", subscriber, exc)
+
+
+def send_security_alert(event_type, payload):
+    """Clean public helper function to emit security alert events across all sinks."""
+    return dispatch_security_event(event_type, payload)
+
+
+# Auto-register Telegram notification subscriber
+try:
+    from auth.telegram_notifier import send_telegram_alert
+    register_subscriber(send_telegram_alert)
+except Exception as exc:
+    logger.warning("Could not auto-register Telegram subscriber: %s", exc)
+

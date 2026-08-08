@@ -86,10 +86,13 @@ from database.db import (
     get_login_history,
     get_user_login_history,
     get_security_activity_summary,
+    record_security_notification,
+    get_security_notifications,
     reset_user_password,
     restore_database_from_file,
     role_can_access,
 )
+from auth.security_notifier import dispatch_security_event, send_security_alert
 from auth.oauth import (
     is_provider_configured,
     get_google_auth_url,
@@ -529,6 +532,16 @@ def record_failed_login(username):
     if len(attempts) >= 5:
         ACCOUNT_LOCKS[username_key] = now + ACCOUNT_LOCK_DURATION
         security_logger.warning("Account temporarily locked after failed login attempts: %s", username_key)
+        dispatch_security_event("ACCOUNT_LOCKED", {
+            "username": username_key,
+            "email": username_key if "@" in username_key else f"{username_key}@local",
+            "ip_address": ip,
+            "user_agent": user_agent(),
+            "risk_score": 85,
+            "risk_level": "HIGH",
+            "risk_signals": ["REPEATED_FAILED_LOGIN", "ACCOUNT_LOCKED"],
+            "failure_reason": "5 consecutive failed logins"
+        })
 
     ip_attempts = prune_login_attempts(LOGIN_IP_FAILURES.get(ip, []))
     ip_attempts.append(now)
@@ -536,6 +549,16 @@ def record_failed_login(username):
     if len(ip_attempts) >= 10:
         IP_BLOCKS[ip] = now + IP_BLOCK_DURATION
         security_logger.warning("IP temporarily blocked after brute-force attempts: %s", ip)
+        dispatch_security_event("LOGIN_FAILURE_THRESHOLD", {
+            "username": username_key,
+            "email": username_key if "@" in username_key else f"{username_key}@local",
+            "ip_address": ip,
+            "user_agent": user_agent(),
+            "risk_score": 90,
+            "risk_level": "CRITICAL",
+            "risk_signals": ["REPEATED_FAILED_LOGIN", "RAPID_LOGIN_ATTEMPTS", "IP_BLOCKED"],
+            "failure_reason": "10 consecutive failed logins from IP"
+        })
 
 
 def clear_failed_login_state(username):
@@ -1575,6 +1598,56 @@ def api_get_security_summary():
 
     summary = get_security_activity_summary(user_id=target_user)
     return api_response(True, "Security activity summary retrieved.", summary)
+
+
+# ------------------------------------------------
+# Real-Time Security Notifications Endpoints
+# ------------------------------------------------
+@app.route("/api/security/notifications/test", methods=["POST"])
+@login_required
+@limiter.limit("5 per minute")
+def api_test_security_notification():
+    """Admin-only test endpoint to trigger a sample security alert."""
+    is_admin = (current_user.role or "").lower() in ("administrator", "admin", "cloud administrator", "cloud_admin")
+    if not is_admin:
+        audit_event("TELEGRAM_TEST_DENIED", "security_notifications", "Permission denied for test notification", "denied", username=current_username())
+        return api_response(False, "Access denied. Only Administrators can send test notifications.", error="forbidden", status_code=403)
+
+    test_payload = {
+        "user_id": current_user.id,
+        "email": getattr(current_user, "email", None) or f"{current_user.username}@local",
+        "username": current_user.username,
+        "authentication_method": "TEST_TRIGGER",
+        "risk_score": 95,
+        "risk_level": "CRITICAL",
+        "risk_signals": ["MANUAL_TEST_NOTIFICATION", "ADMIN_VERIFICATION"],
+        "ip_address": client_ip(),
+        "device_type": "Desktop",
+        "operating_system": "Windows 10/11",
+        "browser": "Chrome",
+    }
+
+    audit_event("TELEGRAM_TEST_SENT", "security_notifications", "Initiated test Telegram security alert", username=current_username())
+    result = dispatch_security_event("SECURITY_ALERT_TEST", test_payload)
+
+    return api_response(True, "Security notification test initiated.", {"status": "dispatched", "result": result})
+
+
+@app.route("/api/security/notifications/history", methods=["GET"])
+@login_required
+def api_get_security_notification_history():
+    """Retrieves paginated history of dispatched security notifications (Admin/Analyst)."""
+    is_elevated = (current_user.role or "").lower() in ("administrator", "admin", "analyst", "security analyst", "cloud administrator", "cloud_admin")
+    if not is_elevated:
+        return api_response(False, "Access denied. You do not have permission to view notification history.", error="forbidden", status_code=403)
+
+    limit = min(request.args.get("limit", 50, type=int), 200)
+    offset = request.args.get("offset", 0, type=int)
+    channel = request.args.get("channel")
+    status = request.args.get("status")
+
+    data = get_security_notifications(limit=limit, offset=offset, channel=channel, status=status)
+    return api_response(True, "Security notification history retrieved.", data)
 
 
 @app.route("/api/cais/score", methods=["GET", "POST"])
